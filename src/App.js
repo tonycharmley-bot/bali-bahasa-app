@@ -643,7 +643,6 @@ export default function App() {
       comboMultiplier: Math.min(3, 1 + Math.floor(streak / 3) * 0.5)
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [score, bestStreak, levelData.level, completedToday, dailyGoal, answeredIds.length, hearts, streak]);
 
   const updateDrillStats = (drillId, wasCorrect) => {
     const nextStats = {};
