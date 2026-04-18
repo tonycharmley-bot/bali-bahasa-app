@@ -1056,22 +1056,33 @@ export default function App() {
             })}
           </div>
         </div>
-
-        <div style={styles.card}>
+            <div style={styles.card}>
           <h3 style={styles.sectionTitle}>🔐 Learning Focus</h3>
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             <div style={styles.achievementRow}>
               <div style={{ fontWeight: 800, marginBottom: 6 }}>Current weakness review</div>
-              <div style={styles.muted}>{wrongIds.length ? `${wrongIds.length} phrase${wrongIds.length > 1 ? "s" : ""} saved for review mode.` : "No saved mistakes yet. Keep going."}</div>
-              <div style={{ ...styles.muted, fontSize: 12, marginTop: 8 }}>Adaptive mode now prioritizes phrases you miss more often and eases off on phrases you keep getting right.</div>
+              <div style={styles.muted}>
+                {wrongIds.length
+                  ? `${wrongIds.length} phrase${wrongIds.length > 1 ? "s" : ""} saved for review mode.`
+                  : "No saved mistakes yet. Keep going."}
+              </div>
+              <div style={{ ...styles.muted, fontSize: 12, marginTop: 8 }}>
+                Adaptive mode now prioritizes phrases you miss more often and eases off on phrases you keep getting right.
+              </div>
             </div>
+
             <div style={styles.achievementRow}>
               <div style={{ fontWeight: 800, marginBottom: 6 }}>Best use on your phone</div>
-              <div style={styles.muted}>Do one 5 minute typing run, then one listening or multiple choice run while you are out and about in Bali.</div>
+              <div style={styles.muted}>
+                Do one 5 minute typing run, then one listening or multiple choice run while you are out and about in Bali.
+              </div>
             </div>
+
             <div style={styles.achievementRow}>
               <div style={{ fontWeight: 800, marginBottom: 6 }}>Install note</div>
-              <div style={styles.muted}>If the Install button does not appear, open this site in Chrome and use the browser menu to add it to your home screen. Proper app icons also need to be uploaded into the public folder as icon-192.png and icon-512.png.</div>
+              <div style={styles.muted}>
+                If the Install button does not appear, open this site in Chrome and use the browser menu to add it to your home screen. Proper app icons also need to be uploaded into the public folder as icon-192.png and icon-512.png.
+              </div>
             </div>
           </div>
         </div>
