@@ -10,12 +10,7 @@ const drills = [
     level: 1,
     prompt: "Where do you want to eat?",
     answers: ["mau makan di mana"],
-    options: [
-      "mau makan di mana",
-      "dari mana mau makan",
-      "makan dari mana",
-      "di mana kamu makan",
-    ],
+    options: ["mau makan di mana", "dari mana mau makan", "makan dari mana", "di mana kamu makan"],
     tip: "Use mau + verb + di mana.",
     explanation: "Natural Indonesian: Mau makan di mana?",
   },
@@ -25,17 +20,8 @@ const drills = [
     category: "Daily",
     level: 1,
     prompt: "I do not know, maybe later.",
-    answers: [
-      "tidak tahu mungkin nanti",
-      "nggak tahu mungkin nanti",
-      "saya tidak tahu mungkin nanti",
-    ],
-    options: [
-      "nggak tahu mungkin nanti",
-      "mungkin saya tidak tahu nanti",
-      "saya mungkin tahu nanti",
-      "nanti saya tidak mungkin",
-    ],
+    answers: ["tidak tahu mungkin nanti", "nggak tahu mungkin nanti", "saya tidak tahu mungkin nanti"],
+    options: ["nggak tahu mungkin nanti", "mungkin saya tidak tahu nanti", "saya mungkin tahu nanti", "nanti saya tidak mungkin"],
     tip: "Maybe later = mungkin nanti.",
     explanation: "Natural version: Nggak tahu, mungkin nanti.",
   },
@@ -46,12 +32,7 @@ const drills = [
     level: 1,
     prompt: "How much is this?",
     answers: ["ini berapa", "berapa harganya"],
-    options: [
-      "ini berapa",
-      "berapa ini harga",
-      "ini harga mana",
-      "berapa kamu",
-    ],
+    options: ["ini berapa", "berapa ini harga", "ini harga mana", "berapa kamu"],
     tip: "Ini berapa? is very common in Bali.",
     explanation: "Fast everyday version: Ini berapa?",
   },
@@ -62,12 +43,7 @@ const drills = [
     level: 1,
     prompt: "Can you help me?",
     answers: ["bisa bantu saya", "bisa bantu"],
-    options: [
-      "bisa bantu saya",
-      "kamu bantu saya",
-      "saya bantu kamu",
-      "bantu saya bisa kamu",
-    ],
+    options: ["bisa bantu saya", "kamu bantu saya", "saya bantu kamu", "bantu saya bisa kamu"],
     tip: "Bisa bantu? is natural and short.",
     explanation: "Natural version: Bisa bantu saya?",
   },
@@ -78,12 +54,7 @@ const drills = [
     level: 1,
     prompt: "I want to order food.",
     answers: ["saya mau pesan makanan", "mau pesan makanan"],
-    options: [
-      "saya mau pesan makanan",
-      "makanan saya mau",
-      "pesan saya makanan mau",
-      "mau saya makanan",
-    ],
+    options: ["saya mau pesan makanan", "makanan saya mau", "pesan saya makanan mau", "mau saya makanan"],
     tip: "Mau pesan... is a core pattern.",
     explanation: "Natural version: Saya mau pesan makanan.",
   },
@@ -93,17 +64,8 @@ const drills = [
     category: "Warung",
     level: 2,
     prompt: "What do you recommend?",
-    answers: [
-      "yang enak apa",
-      "apa yang kamu sarankan",
-      "apa yang anda sarankan",
-    ],
-    options: [
-      "yang enak apa",
-      "apa enak yang",
-      "sarankan saya apa",
-      "apa kamu enak",
-    ],
+    answers: ["yang enak apa", "apa yang kamu sarankan", "apa yang anda sarankan"],
+    options: ["yang enak apa", "apa enak yang", "sarankan saya apa", "apa kamu enak"],
     tip: "Yang enak apa? is simple and natural.",
     explanation: "Very natural Bali version: Yang enak apa?",
   },
@@ -113,16 +75,8 @@ const drills = [
     category: "Transport",
     level: 2,
     prompt: "I live in Sanur now.",
-    answers: [
-      "sekarang saya tinggal di sanur",
-      "saya tinggal di sanur sekarang",
-    ],
-    options: [
-      "sekarang saya tinggal di sanur",
-      "saya tinggal sekarang sanur",
-      "sanur tinggal saya sekarang",
-      "saya sekarang dari sanur",
-    ],
+    answers: ["sekarang saya tinggal di sanur", "saya tinggal di sanur sekarang"],
+    options: ["sekarang saya tinggal di sanur", "saya tinggal sekarang sanur", "sanur tinggal saya sekarang", "saya sekarang dari sanur"],
     tip: "Sekarang can go at the start or end.",
     explanation: "Natural version: Sekarang saya tinggal di Sanur.",
   },
@@ -132,17 +86,8 @@ const drills = [
     category: "Daily",
     level: 2,
     prompt: "I am a bit busy right now.",
-    answers: [
-      "sekarang lagi sibuk sedikit",
-      "saya lagi sibuk sedikit sekarang",
-      "sekarang saya lagi sibuk sedikit",
-    ],
-    options: [
-      "sekarang lagi sibuk sedikit",
-      "sibuk saya sedikit sekarang",
-      "saya sekarang sibuk mana",
-      "lagi sedikit saya sekarang",
-    ],
+    answers: ["sekarang lagi sibuk sedikit", "saya lagi sibuk sedikit sekarang", "sekarang saya lagi sibuk sedikit"],
+    options: ["sekarang lagi sibuk sedikit", "sibuk saya sedikit sekarang", "saya sekarang sibuk mana", "lagi sedikit saya sekarang"],
     tip: "Lagi = currently doing or being.",
     explanation: "Natural version: Sekarang lagi sibuk sedikit.",
   },
@@ -153,12 +98,7 @@ const drills = [
     level: 2,
     prompt: "Please wait a moment.",
     answers: ["sebentar ya", "tolong tunggu sebentar", "tunggu sebentar"],
-    options: [
-      "sebentar ya",
-      "tunggu ya mana",
-      "tolong sedikit tunggu mana",
-      "sebentar kamu",
-    ],
+    options: ["sebentar ya", "tunggu ya mana", "tolong sedikit tunggu mana", "sebentar kamu"],
     tip: "Sebentar ya is friendly and common.",
     explanation: "Friendly version: Sebentar ya.",
   },
@@ -180,12 +120,7 @@ const drills = [
     level: 3,
     prompt: "Sudah makan?",
     answers: ["sudah terima kasih", "belum nanti", "belum makan"],
-    options: [
-      "Sudah, terima kasih",
-      "Saya dari Australia",
-      "Mau pesan makanan",
-      "Ini berapa",
-    ],
+    options: ["Sudah, terima kasih", "Saya dari Australia", "Mau pesan makanan", "Ini berapa"],
     tip: "Choose a natural short reply.",
     explanation: "Common replies: Sudah, terima kasih. Belum, nanti.",
   },
@@ -196,12 +131,7 @@ const drills = [
     level: 3,
     prompt: "Kamu dari mana?",
     answers: ["saya dari australia", "dari australia"],
-    options: [
-      "Saya dari Australia",
-      "Saya tinggal di warung",
-      "Ini berapa",
-      "Nanti saja",
-    ],
+    options: ["Saya dari Australia", "Saya tinggal di warung", "Ini berapa", "Nanti saja"],
     tip: "Drop words to sound more natural.",
     explanation: "Natural version: Saya dari Australia.",
   },
@@ -211,16 +141,8 @@ const drills = [
     category: "Villa",
     level: 3,
     prompt: "Please turn off the air conditioner when you go out.",
-    answers: [
-      "tolong matikan ac kalau keluar",
-      "kalau keluar tolong matikan ac",
-    ],
-    options: [
-      "tolong matikan ac kalau keluar",
-      "keluar ac tolong mati",
-      "tolong ac keluar mati",
-      "matikan keluar saya",
-    ],
+    answers: ["tolong matikan ac kalau keluar", "kalau keluar tolong matikan ac"],
+    options: ["tolong matikan ac kalau keluar", "keluar ac tolong mati", "tolong ac keluar mati", "matikan keluar saya"],
     tip: "Kalau = if or when.",
     explanation: "Natural version: Tolong matikan AC kalau keluar.",
   },
@@ -230,16 +152,8 @@ const drills = [
     category: "Driver",
     level: 3,
     prompt: "Can you pick us up at 7 tonight?",
-    answers: [
-      "bisa jemput kami jam 7 malam ini",
-      "bisa jemput kita jam 7 malam ini",
-    ],
-    options: [
-      "bisa jemput kami jam 7 malam ini",
-      "jemput bisa malam kami",
-      "jam 7 bisa kamu kami",
-      "malam ini kamu dari mana",
-    ],
+    answers: ["bisa jemput kami jam 7 malam ini", "bisa jemput kita jam 7 malam ini"],
+    options: ["bisa jemput kami jam 7 malam ini", "jemput bisa malam kami", "jam 7 bisa kamu kami", "malam ini kamu dari mana"],
     tip: "Jam 7 malam ini = at 7 tonight.",
     explanation: "Natural version: Bisa jemput kami jam 7 malam ini?",
   },
@@ -250,12 +164,7 @@ const drills = [
     level: 3,
     prompt: "Have the guests arrived yet?",
     answers: ["tamunya sudah datang belum", "sudah datang belum tamunya"],
-    options: [
-      "tamunya sudah datang belum",
-      "tamu datang dari mana",
-      "sudah tamu di mana",
-      "belum mana datang",
-    ],
+    options: ["tamunya sudah datang belum", "tamu datang dari mana", "sudah tamu di mana", "belum mana datang"],
     tip: "Sudah ... belum is a very useful pattern.",
     explanation: "Natural version: Tamunya sudah datang belum?",
   },
@@ -265,16 +174,8 @@ const drills = [
     category: "Listening",
     level: 4,
     prompt: "Nanti saya kirim pesan ya, sekarang lagi sibuk sedikit.",
-    answers: [
-      "i will message later i am a bit busy right now",
-      "ill message later im a bit busy right now",
-    ],
-    options: [
-      "I will message later, I am a bit busy right now",
-      "Where do you want to eat?",
-      "How much is this?",
-      "I am from Australia",
-    ],
+    answers: ["i will message later i am a bit busy right now", "ill message later im a bit busy right now"],
+    options: ["I will message later, I am a bit busy right now", "Where do you want to eat?", "How much is this?", "I am from Australia"],
     tip: "Listen and choose the correct meaning.",
     explanation: "Meaning: I will message later, I am a bit busy right now.",
   },
@@ -285,12 +186,7 @@ const drills = [
     level: 4,
     prompt: "Tolong tunggu sebentar ya.",
     answers: ["please wait a moment", "please wait a moment."],
-    options: [
-      "Please wait a moment",
-      "Can you help me?",
-      "Where are you from?",
-      "This one please",
-    ],
+    options: ["Please wait a moment", "Can you help me?", "Where are you from?", "This one please"],
     tip: "Sebentar = a moment.",
     explanation: "Meaning: Please wait a moment.",
   },
@@ -301,31 +197,18 @@ const drills = [
     level: 4,
     prompt: "Yang enak apa di sini?",
     answers: ["what is good here", "what do you recommend here"],
-    options: [
-      "What is good here?",
-      "How much is this?",
-      "I live in Sanur now",
-      "We will go later",
-    ],
+    options: ["What is good here?", "How much is this?", "I live in Sanur now", "We will go later"],
     tip: "Enak = tasty / good.",
     explanation: "Meaning: What is good here?",
   },
 ];
 
 const achievements = [
-  {
-    key: "firstWin",
-    label: "First Win",
-    desc: "Get your first correct answer",
-  },
+  { key: "firstWin", label: "First Win", desc: "Get your first correct answer" },
   { key: "streak5", label: "Hot Streak", desc: "Reach a streak of 5" },
   { key: "score100", label: "Century", desc: "Score 100 points" },
   { key: "level3", label: "Conversational Spark", desc: "Reach level 3" },
-  {
-    key: "dailyGoal",
-    label: "Daily Discipline",
-    desc: "Finish your daily goal",
-  },
+  { key: "dailyGoal", label: "Daily Discipline", desc: "Finish your daily goal" },
   { key: "survivor", label: "Survivor", desc: "Finish a run with lives left" },
 ];
 
@@ -355,22 +238,12 @@ const chooseAdaptiveDrill = (items, drillStats, excludeId = null) => {
   if (!source.length) return null;
 
   const weighted = source.map((item) => {
-    const stats = drillStats[item.id] || {
-      seen: 0,
-      correct: 0,
-      wrong: 0,
-      streak: 0,
-      cooldown: 0,
-    };
+    const stats = drillStats[item.id] || { seen: 0, correct: 0, wrong: 0, streak: 0, cooldown: 0 };
     const base = 1;
-    const weaknessBoost =
-      stats.wrong * 3 + Math.max(0, stats.seen - stats.correct) * 1.5;
+    const weaknessBoost = stats.wrong * 3 + Math.max(0, stats.seen - stats.correct) * 1.5;
     const masteryPenalty = Math.min(stats.streak * 0.6, 2.5);
     const cooldownPenalty = stats.cooldown || 0;
-    const weight = Math.max(
-      1,
-      base + weaknessBoost - masteryPenalty - cooldownPenalty
-    );
+    const weight = Math.max(1, base + weaknessBoost - masteryPenalty - cooldownPenalty);
     return { item, weight };
   });
 
@@ -388,8 +261,7 @@ const chooseAdaptiveDrill = (items, drillStats, excludeId = null) => {
 const styles = {
   page: {
     minHeight: "100vh",
-    background:
-      "linear-gradient(135deg, #06111f 0%, #0f172a 45%, #062a27 100%)",
+    background: "linear-gradient(135deg, #06111f 0%, #0f172a 45%, #062a27 100%)",
     color: "#fff",
     fontFamily: "Inter, Arial, sans-serif",
     padding: 16,
@@ -559,9 +431,7 @@ const styles = {
 
 export default function App() {
   const [started, setStarted] = useState(false);
-  const [currentDrillId, setCurrentDrillId] = useState(() =>
-    getRandomDrillId(drills)
-  );
+  const [currentDrillId, setCurrentDrillId] = useState(() => getRandomDrillId(drills));
   const [input, setInput] = useState("");
   const [score, setScore] = useState(0);
   const [streak, setStreak] = useState(0);
@@ -582,6 +452,9 @@ export default function App() {
   const [isListening, setIsListening] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
   const [drillStats, setDrillStats] = useState({});
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [installReady, setInstallReady] = useState(false);
+  const [isInstalled, setIsInstalled] = useState(false);
   const recognitionRef = useRef(null);
 
   useEffect(() => {
@@ -612,9 +485,44 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     setVoiceSupported(Boolean(SpeechRecognition));
+  }, []);
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("/sw.js").catch((err) => {
+          console.error("Service worker registration failed", err);
+        });
+      });
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setInstallReady(true);
+    };
+
+    const installedHandler = () => {
+      setIsInstalled(true);
+      setInstallReady(false);
+      setDeferredPrompt(null);
+    };
+
+    const standalone = window.matchMedia && window.matchMedia("(display-mode: standalone)").matches;
+    if (standalone || window.navigator.standalone) {
+      setIsInstalled(true);
+    }
+
+    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("appinstalled", installedHandler);
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      window.removeEventListener("appinstalled", installedHandler);
+    };
   }, []);
 
   useEffect(() => {
@@ -638,48 +546,22 @@ export default function App() {
       drillStats,
     };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
-  }, [
-    started,
-    currentDrillId,
-    score,
-    streak,
-    bestStreak,
-    xp,
-    hearts,
-    answeredIds,
-    unlocked,
-    mode,
-    playMode,
-    dailyGoal,
-    completedToday,
-    wrongIds,
-    showReviewOnly,
-    comboMultiplier,
-    drillStats,
-  ]);
+  }, [started, currentDrillId, score, streak, bestStreak, xp, hearts, answeredIds, unlocked, mode, playMode, dailyGoal, completedToday, wrongIds, showReviewOnly, comboMultiplier, drillStats]);
 
   const pool = useMemo(() => {
     let filtered = drills;
-    if (mode !== "all")
-      filtered = filtered.filter((d) => d.category.toLowerCase() === mode);
-    if (showReviewOnly)
-      filtered = filtered.filter((d) => wrongIds.includes(d.id));
+    if (mode !== "all") filtered = filtered.filter((d) => d.category.toLowerCase() === mode);
+    if (showReviewOnly) filtered = filtered.filter((d) => wrongIds.includes(d.id));
     if (playMode === "listening") {
-      filtered = filtered.filter(
-        (d) => d.type === "listening" || d.category === "Listening"
-      );
+      filtered = filtered.filter((d) => d.type === "listening" || d.category === "Listening");
     }
     return filtered.length ? filtered : drills;
   }, [mode, showReviewOnly, wrongIds, playMode]);
 
-  const current =
-    pool.find((d) => d.id === currentDrillId) || pool[0] || drills[0];
+  const current = pool.find((d) => d.id === currentDrillId) || pool[0] || drills[0];
   const levelData = getLevelData(score);
   const progressToNext = Math.min(100, xp % 100);
-  const categories = [
-    "all",
-    ...Array.from(new Set(drills.map((d) => d.category.toLowerCase()))),
-  ];
+  const categories = ["all", ...Array.from(new Set(drills.map((d) => d.category.toLowerCase())))];
 
   useEffect(() => {
     const next = [];
@@ -691,16 +573,7 @@ export default function App() {
     if (answeredIds.length >= 5 && hearts > 0) next.push("survivor");
     setUnlocked(next);
     setComboMultiplier(Math.min(3, 1 + Math.floor(streak / 3) * 0.5));
-  }, [
-    score,
-    bestStreak,
-    levelData.level,
-    completedToday,
-    dailyGoal,
-    answeredIds.length,
-    hearts,
-    streak,
-  ]);
+  }, [score, bestStreak, levelData.level, completedToday, dailyGoal, answeredIds.length, hearts, streak]);
 
   const updateDrillStats = (drillId, wasCorrect) => {
     setDrillStats((prev) => {
@@ -712,13 +585,7 @@ export default function App() {
         };
       });
 
-      const existing = nextStats[drillId] || {
-        seen: 0,
-        correct: 0,
-        wrong: 0,
-        streak: 0,
-        cooldown: 0,
-      };
+      const existing = nextStats[drillId] || { seen: 0, correct: 0, wrong: 0, streak: 0, cooldown: 0 };
       nextStats[drillId] = {
         seen: existing.seen + 1,
         correct: existing.correct + (wasCorrect ? 1 : 0),
@@ -740,8 +607,7 @@ export default function App() {
   };
 
   const startVoiceInput = () => {
-    const SpeechRecognition =
-      window.SpeechRecognition || window.webkitSpeechRecognition;
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) return;
 
     if (recognitionRef.current) {
@@ -759,10 +625,7 @@ export default function App() {
     };
 
     recognition.onresult = (event) => {
-      const transcript =
-        event.results && event.results[0] && event.results[0][0]
-          ? event.results[0][0].transcript
-          : "";
+      const transcript = event.results && event.results[0] && event.results[0][0] ? event.results[0][0].transcript : "";
       setInput(transcript);
       setSaveNotice(`Heard: ${transcript}`);
       setTimeout(() => setSaveNotice(""), 1800);
@@ -783,9 +646,7 @@ export default function App() {
 
   const moveToNextDrill = () => {
     const nextDrill = chooseAdaptiveDrill(pool, drillStats, current.id);
-    setCurrentDrillId(
-      nextDrill ? nextDrill.id : getRandomDrillId(pool.length ? pool : drills)
-    );
+    setCurrentDrillId(nextDrill ? nextDrill.id : getRandomDrillId(pool.length ? pool : drills));
   };
 
   const checkAnswer = (submitted) => {
@@ -796,9 +657,7 @@ export default function App() {
     if (isCorrect) {
       updateDrillStats(current.id, true);
       const newStreak = streak + 1;
-      const gained = Math.round(
-        (10 + Math.min(newStreak * 2, 20)) * comboMultiplier
-      );
+      const gained = Math.round((10 + Math.min(newStreak * 2, 20)) * comboMultiplier);
       setScore((s) => s + gained);
       setXp((x) => x + 25);
       setStreak(newStreak);
@@ -806,11 +665,7 @@ export default function App() {
       setCompletedToday((c) => c + 1);
       setAnsweredIds((prev) => [...prev, current.id]);
       setWrongIds((prev) => prev.filter((id) => id !== current.id));
-      setFeedback({
-        ok: true,
-        text: `Correct. +${gained} points`,
-        explanation: current.explanation,
-      });
+      setFeedback({ ok: true, text: `Correct. +${gained} points`, explanation: current.explanation });
       setInput("");
       setTimeout(() => {
         setFeedback(null);
@@ -820,14 +675,8 @@ export default function App() {
       updateDrillStats(current.id, false);
       setHearts((h) => Math.max(h - 1, 0));
       setStreak(0);
-      setWrongIds((prev) =>
-        prev.includes(current.id) ? prev : [...prev, current.id]
-      );
-      setFeedback({
-        ok: false,
-        text: "Not quite",
-        explanation: `${current.explanation} Tip: ${current.tip}`,
-      });
+      setWrongIds((prev) => (prev.includes(current.id) ? prev : [...prev, current.id]));
+      setFeedback({ ok: false, text: "Not quite", explanation: `${current.explanation} Tip: ${current.tip}` });
     }
   };
 
@@ -839,6 +688,28 @@ export default function App() {
   const saveNow = () => {
     setSaveNotice("Progress saved.");
     setTimeout(() => setSaveNotice(""), 1200);
+  };
+
+  const installApp = async () => {
+    if (!deferredPrompt) {
+      setSaveNotice("Install prompt not ready yet. In Chrome, use the browser menu and choose Add to Home screen.");
+      setTimeout(() => setSaveNotice(""), 2600);
+      return;
+    }
+
+    deferredPrompt.prompt();
+    const choice = await deferredPrompt.userChoice;
+    if (choice && choice.outcome === "accepted") {
+      setSaveNotice("App install started.");
+    } else {
+      setSaveNotice("Install dismissed.");
+    }
+    setDeferredPrompt(null);
+    setInstallReady(false);
+    if (choice && choice.outcome === "accepted") {
+      setIsInstalled(true);
+    }
+    setTimeout(() => setSaveNotice(""), 1800);
   };
 
   const clearSavedProgress = () => {
@@ -878,74 +749,31 @@ export default function App() {
         <div style={styles.wrap}>
           <div style={styles.pill}>✨ Bali Bahasa Trainer</div>
           <h1 style={styles.heroTitle}>
-            Learn Indonesian for{" "}
-            <span style={{ color: "#86efac" }}>real Bali conversations</span>
+            Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span>
           </h1>
           <p style={styles.heroText}>
-            Full mobile-friendly trainer with adaptive drills, voice input,
-            saved progress, achievements, review mode, listening practice, and
-            Bali-specific conversation prompts.
+            Full mobile-friendly trainer with adaptive drills, voice input, saved progress, achievements, review mode, listening practice, and Bali-specific conversation prompts.
           </p>
 
           <div style={styles.card}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: 10,
-                marginBottom: 16,
-              }}
-            >
-              <div style={styles.smallStat}>
-                <div style={{ fontSize: 20 }}>🏆</div>
-                <div style={{ fontWeight: 800, marginTop: 6 }}>5</div>
-                <div style={styles.muted}>Levels</div>
-              </div>
-              <div style={styles.smallStat}>
-                <div style={{ fontSize: 20 }}>🔥</div>
-                <div style={{ fontWeight: 800, marginTop: 6 }}>Streaks</div>
-                <div style={styles.muted}>Momentum</div>
-              </div>
-              <div style={styles.smallStat}>
-                <div style={{ fontSize: 20 }}>💬</div>
-                <div style={{ fontWeight: 800, marginTop: 6 }}>Bali</div>
-                <div style={styles.muted}>Focused</div>
-              </div>
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
+              <div style={styles.smallStat}><div style={{ fontSize: 20 }}>🏆</div><div style={{ fontWeight: 800, marginTop: 6 }}>5</div><div style={styles.muted}>Levels</div></div>
+              <div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔥</div><div style={{ fontWeight: 800, marginTop: 6 }}>Streaks</div><div style={styles.muted}>Momentum</div></div>
+              <div style={styles.smallStat}><div style={{ fontSize: 20 }}>💬</div><div style={{ fontWeight: 800, marginTop: 6 }}>Bali</div><div style={styles.muted}>Focused</div></div>
             </div>
 
             <div style={{ marginBottom: 14 }}>
-              <div
-                style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}
-              >
-                Daily goal
-              </div>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: 8,
-                }}
-              >
+              <div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>
                 {[5, 10, 20].map((goal) => (
-                  <button
-                    key={goal}
-                    style={
-                      goal === dailyGoal
-                        ? { ...styles.buttonPrimary, height: 42 }
-                        : { ...styles.button, height: 42 }
-                    }
-                    onClick={() => setDailyGoal(goal)}
-                  >
+                  <button key={goal} style={goal === dailyGoal ? { ...styles.buttonPrimary, height: 42 } : { ...styles.button, height: 42 }} onClick={() => setDailyGoal(goal)}>
                     {goal} drills
                   </button>
                 ))}
               </div>
             </div>
 
-            <button
-              style={{ ...styles.buttonPrimary, width: "100%" }}
-              onClick={() => setStarted(true)}
-            >
+            <button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => setStarted(true)}>
               Start Training
             </button>
           </div>
@@ -960,160 +788,59 @@ export default function App() {
         <div style={styles.card}>
           <div style={styles.row}>
             <div>
-              <div
-                style={{
-                  color: "#86efac",
-                  letterSpacing: "0.18em",
-                  textTransform: "uppercase",
-                  fontSize: 11,
-                  fontWeight: 800,
-                }}
-              >
-                {levelData.title}
-              </div>
-              <div style={{ fontSize: 28, fontWeight: 800 }}>
-                Level {levelData.level}
-              </div>
+              <div style={{ color: "#86efac", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 800 }}>{levelData.title}</div>
+              <div style={{ fontSize: 28, fontWeight: 800 }}>Level {levelData.level}</div>
             </div>
-            <div
-              style={{
-                ...styles.badge,
-                background: "rgba(251,191,36,0.14)",
-                color: "#fde68a",
-                borderColor: "rgba(251,191,36,0.22)",
-              }}
-            >
-              {score} pts
-            </div>
+            <div style={{ ...styles.badge, background: "rgba(251,191,36,0.14)", color: "#fde68a", borderColor: "rgba(251,191,36,0.22)" }}>{score} pts</div>
           </div>
 
-          <div style={{ marginTop: 14, ...styles.progressTrack }}>
-            <div style={styles.progressFill(progressToNext)} />
-          </div>
+          <div style={{ marginTop: 14, ...styles.progressTrack }}><div style={styles.progressFill(progressToNext)} /></div>
 
           <div style={{ ...styles.statGrid, marginTop: 14 }}>
-            <div style={styles.smallStat}>
-              <div style={{ fontSize: 18 }}>🔥</div>
-              <div style={{ fontWeight: 800 }}>{streak}</div>
-              <div style={styles.muted}>Streak</div>
-            </div>
-            <div style={styles.smallStat}>
-              <div style={{ fontSize: 18 }}>⭐</div>
-              <div style={{ fontWeight: 800 }}>{bestStreak}</div>
-              <div style={styles.muted}>Best</div>
-            </div>
-            <div style={styles.smallStat}>
-              <div style={{ fontSize: 18 }}>❤️</div>
-              <div style={{ fontWeight: 800 }}>{hearts}</div>
-              <div style={styles.muted}>Lives</div>
-            </div>
-            <div style={styles.smallStat}>
-              <div style={{ fontSize: 18 }}>⚔️</div>
-              <div style={{ fontWeight: 800 }}>
-                x{comboMultiplier.toFixed(1)}
-              </div>
-              <div style={styles.muted}>Combo</div>
-            </div>
+            <div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔥</div><div style={{ fontWeight: 800 }}>{streak}</div><div style={styles.muted}>Streak</div></div>
+            <div style={styles.smallStat}><div style={{ fontSize: 18 }}>⭐</div><div style={{ fontWeight: 800 }}>{bestStreak}</div><div style={styles.muted}>Best</div></div>
+            <div style={styles.smallStat}><div style={{ fontSize: 18 }}>❤️</div><div style={{ fontWeight: 800 }}>{hearts}</div><div style={styles.muted}>Lives</div></div>
+            <div style={styles.smallStat}><div style={{ fontSize: 18 }}>⚔️</div><div style={{ fontWeight: 800 }}>x{comboMultiplier.toFixed(1)}</div><div style={styles.muted}>Combo</div></div>
           </div>
 
           <div style={{ marginTop: 14 }}>
             <div style={{ ...styles.row, marginBottom: 6 }}>
               <div style={styles.muted}>Daily goal</div>
-              <div style={{ color: "#86efac", fontWeight: 700 }}>
-                {completedToday}/{dailyGoal}
-              </div>
+              <div style={{ color: "#86efac", fontWeight: 700 }}>{completedToday}/{dailyGoal}</div>
             </div>
-            <div style={styles.progressTrack}>
-              <div
-                style={styles.progressFill((completedToday / dailyGoal) * 100)}
-              />
-            </div>
+            <div style={styles.progressTrack}><div style={styles.progressFill((completedToday / dailyGoal) * 100)} /></div>
           </div>
         </div>
 
         <div style={{ ...styles.card, padding: 12 }}>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 8,
-              marginBottom: 8,
-            }}
-          >
-            <button style={buttonStyle(false, false)} onClick={saveNow}>
-              💾 Save Progress
-            </button>
-            <button
-              style={buttonStyle(false, true)}
-              onClick={clearSavedProgress}
-            >
-              ↺ Reset Saved
-            </button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}>
+            <button style={buttonStyle(false, false)} onClick={saveNow}>💾 Save</button>
+            <button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button>
+            <button style={buttonStyle(false, true)} onClick={clearSavedProgress}>↺ Reset</button>
           </div>
 
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              overflowX: "auto",
-              paddingBottom: 4,
-              marginBottom: 8,
-            }}
-          >
+          <div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>
             {categories.map((cat) => (
               <button
                 key={cat}
-                style={{
-                  ...styles.button,
-                  whiteSpace: "nowrap",
-                  borderRadius: 999,
-                  ...(mode === cat ? styles.buttonActive : {}),
-                }}
+                style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(mode === cat ? styles.buttonActive : {}) }}
                 onClick={() => {
                   setMode(cat);
-                  const nextPool =
-                    cat === "all"
-                      ? drills
-                      : drills.filter((d) => d.category.toLowerCase() === cat);
-                  setCurrentDrillId(
-                    getRandomDrillId(nextPool.length ? nextPool : drills)
-                  );
+                  const nextPool = cat === "all" ? drills : drills.filter((d) => d.category.toLowerCase() === cat);
+                  setCurrentDrillId(getRandomDrillId(nextPool.length ? nextPool : drills));
                   setFeedback(null);
                   setInput("");
                 }}
               >
-                {cat === "all"
-                  ? "All"
-                  : cat.charAt(0).toUpperCase() + cat.slice(1)}
+                {cat === "all" ? "All" : cat.charAt(0).toUpperCase() + cat.slice(1)}
               </button>
             ))}
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(2, 1fr)",
-              gap: 8,
-            }}
-          >
-            <button
-              style={buttonStyle(playMode === "typing", false)}
-              onClick={() => setPlayMode("typing")}
-            >
-              🧠 Typing
-            </button>
-            <button
-              style={buttonStyle(playMode === "multiple", false)}
-              onClick={() => setPlayMode("multiple")}
-            >
-              🎯 Multiple Choice
-            </button>
-            <button
-              style={buttonStyle(playMode === "listening", false)}
-              onClick={() => setPlayMode("listening")}
-            >
-              🎧 Listening
-            </button>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+            <button style={buttonStyle(playMode === "typing", false)} onClick={() => setPlayMode("typing")}>🧠 Typing</button>
+            <button style={buttonStyle(playMode === "multiple", false)} onClick={() => setPlayMode("multiple")}>🎯 Multiple Choice</button>
+            <button style={buttonStyle(playMode === "listening", false)} onClick={() => setPlayMode("listening")}>🎧 Listening</button>
             <button
               style={buttonStyle(showReviewOnly, true)}
               onClick={() => {
@@ -1130,30 +857,16 @@ export default function App() {
           <div style={styles.card}>
             <div style={styles.row}>
               <div style={styles.badge}>{current.category}</div>
-              <div
-                style={{
-                  ...styles.badge,
-                  background: "transparent",
-                  color: "#cbd5e1",
-                  borderColor: "rgba(255,255,255,0.15)",
-                }}
-              >
-                Drill {answeredIds.length + 1}
-              </div>
+              <div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>Drill {answeredIds.length + 1}</div>
             </div>
 
-            <h2
-              style={{
-                fontSize: 19,
-                lineHeight: 1.35,
-                marginTop: 14,
-                marginBottom: 14,
-                color: "#fff",
-                fontWeight: 800,
-              }}
-            >
-              {current.prompt}
-            </h2>
+            <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 14, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current.prompt}</h2>
+
+            {playMode === "typing" ? (
+              <div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>
+                Type your answer in <strong>Bahasa Indonesia</strong>.
+              </div>
+            ) : null}
 
             {playMode === "typing" ? (
               <div style={{ display: "flex", gap: 8 }}>
@@ -1162,126 +875,42 @@ export default function App() {
                   value={input}
                   onChange={(e) => setInput(e.target.value)}
                   onKeyDown={(e) => e.key === "Enter" && handleSubmit()}
-                  placeholder="Type your answer"
+                  placeholder="Type your answer in Bahasa Indonesia"
                 />
-                <button
-                  style={{ ...styles.button, width: 50, padding: 0 }}
-                  onClick={() =>
-                    speak(
-                      current.type === "listening"
-                        ? current.prompt
-                        : current.answers[0]
-                    )
-                  }
-                >
-                  🔊
-                </button>
+                <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current.type === "listening" ? current.prompt : current.answers[0])}>🔊</button>
                 {voiceSupported && (
-                  <button
-                    style={{
-                      ...styles.button,
-                      width: 50,
-                      padding: 0,
-                      background: isListening
-                        ? "rgba(16,185,129,0.30)"
-                        : "rgba(255,255,255,0.05)",
-                    }}
-                    onClick={startVoiceInput}
-                  >
-                    🎤
-                  </button>
+                  <button style={{ ...styles.button, width: 50, padding: 0, background: isListening ? "rgba(16,185,129,0.30)" : "rgba(255,255,255,0.05)" }} onClick={startVoiceInput}>🎤</button>
                 )}
               </div>
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
                 {(current.options || []).map((option) => (
-                  <button
-                    key={option}
-                    style={styles.answerButton}
-                    onClick={() => checkAnswer(option)}
-                  >
-                    {option}
-                  </button>
+                  <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>
                 ))}
-                <button
-                  style={styles.button}
-                  onClick={() =>
-                    speak(
-                      current.type === "listening"
-                        ? current.prompt
-                        : current.answers[0]
-                    )
-                  }
-                >
-                  🔊 Play Audio
-                </button>
+                <button style={styles.button} onClick={() => speak(current.type === "listening" ? current.prompt : current.answers[0])}>🔊 Play Audio</button>
               </div>
             )}
 
-            <div style={{ marginTop: 12, ...styles.muted }}>
-              Tip: {current.tip}
-            </div>
-            {saveNotice ? (
-              <div style={{ marginTop: 8, color: "#86efac", fontSize: 13 }}>
-                {saveNotice}
-              </div>
-            ) : null}
+            <div style={{ marginTop: 12, ...styles.muted }}>{playMode === "typing" ? `Translate into Bahasa Indonesia. Tip: ${current.tip}` : `Tip: ${current.tip}`}</div>
+            {saveNotice ? <div style={{ marginTop: 8, color: "#86efac", fontSize: 13 }}>{saveNotice}</div> : null}
 
             {playMode === "typing" ? (
-              <button
-                style={{
-                  ...styles.buttonPrimary,
-                  width: "100%",
-                  marginTop: 14,
-                }}
-                onClick={handleSubmit}
-              >
-                Check Answer
-              </button>
+              <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button>
             ) : null}
 
             {feedback ? (
-              <div
-                style={{
-                  marginTop: 14,
-                  ...(feedback.ok ? styles.feedbackGood : styles.feedbackBad),
-                }}
-              >
-                <div
-                  style={{
-                    fontWeight: 800,
-                    color: feedback.ok ? "#a7f3d0" : "#fecdd3",
-                  }}
-                >
-                  {feedback.text}
-                </div>
-                <div
-                  style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}
-                >
-                  {feedback.explanation}
-                </div>
+              <div style={{ marginTop: 14, ...(feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}>
+                <div style={{ fontWeight: 800, color: feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{feedback.text}</div>
+                <div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{feedback.explanation}</div>
               </div>
             ) : null}
           </div>
         ) : (
           <div style={styles.card}>
-            <div style={{ textAlign: "center", fontSize: 42 }}>
-              {hearts <= 0 ? "💀" : "🎉"}
-            </div>
-            <div
-              style={{
-                textAlign: "center",
-                fontSize: 26,
-                fontWeight: 800,
-                marginTop: 6,
-              }}
-            >
-              {hearts <= 0 ? "Run Over" : "Session Complete"}
-            </div>
+            <div style={{ textAlign: "center", fontSize: 42 }}>{hearts <= 0 ? "💀" : "🎉"}</div>
+            <div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>{hearts <= 0 ? "Run Over" : "Session Complete"}</div>
             <p style={{ textAlign: "center", color: "#cbd5e1" }}>
-              {hearts <= 0
-                ? "You ran out of lives. Reset and go again."
-                : "Nice work. Keep building fast recall for Bali conversations."}
+              {hearts <= 0 ? "You ran out of lives. Reset and go again." : "Nice work. Keep building fast recall for Bali conversations."}
             </p>
             <button
               style={{ ...styles.buttonPrimary, width: "100%" }}
@@ -1314,30 +943,13 @@ export default function App() {
             {achievements.map((a) => {
               const isUnlocked = unlocked.includes(a.key);
               return (
-                <div
-                  key={a.key}
-                  style={{
-                    ...styles.achievementRow,
-                    background: isUnlocked
-                      ? "rgba(251,191,36,0.10)"
-                      : "rgba(15,23,42,0.68)",
-                    borderColor: isUnlocked
-                      ? "rgba(251,191,36,0.22)"
-                      : "rgba(255,255,255,0.10)",
-                  }}
-                >
+                <div key={a.key} style={{ ...styles.achievementRow, background: isUnlocked ? "rgba(251,191,36,0.10)" : "rgba(15,23,42,0.68)", borderColor: isUnlocked ? "rgba(251,191,36,0.22)" : "rgba(255,255,255,0.10)" }}>
                   <div style={styles.row}>
                     <div>
                       <div style={{ fontWeight: 800 }}>{a.label}</div>
-                      <div
-                        style={{ ...styles.muted, fontSize: 14, marginTop: 3 }}
-                      >
-                        {a.desc}
-                      </div>
+                      <div style={{ ...styles.muted, fontSize: 14, marginTop: 3 }}>{a.desc}</div>
                     </div>
-                    <div style={{ fontSize: 22 }}>
-                      {isUnlocked ? "🏆" : "🔒"}
-                    </div>
+                    <div style={{ fontSize: 22 }}>{isUnlocked ? "🏆" : "🔒"}</div>
                   </div>
                 </div>
               );
@@ -1349,29 +961,17 @@ export default function App() {
           <h3 style={styles.sectionTitle}>🔐 Learning Focus</h3>
           <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
             <div style={styles.achievementRow}>
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>
-                Current weakness review
-              </div>
-              <div style={styles.muted}>
-                {wrongIds.length
-                  ? `${wrongIds.length} phrase${
-                      wrongIds.length > 1 ? "s" : ""
-                    } saved for review mode.`
-                  : "No saved mistakes yet. Keep going."}
-              </div>
-              <div style={{ ...styles.muted, fontSize: 12, marginTop: 8 }}>
-                Adaptive mode now prioritizes phrases you miss more often and
-                eases off on phrases you keep getting right.
-              </div>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Current weakness review</div>
+              <div style={styles.muted}>{wrongIds.length ? `${wrongIds.length} phrase${wrongIds.length > 1 ? "s" : ""} saved for review mode.` : "No saved mistakes yet. Keep going."}</div>
+              <div style={{ ...styles.muted, fontSize: 12, marginTop: 8 }}>Adaptive mode now prioritizes phrases you miss more often and eases off on phrases you keep getting right.</div>
             </div>
             <div style={styles.achievementRow}>
-              <div style={{ fontWeight: 800, marginBottom: 6 }}>
-                Best use on your phone
-              </div>
-              <div style={styles.muted}>
-                Do one 5 minute typing run, then one listening or multiple
-                choice run while you are out and about in Bali.
-              </div>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Best use on your phone</div>
+              <div style={styles.muted}>Do one 5 minute typing run, then one listening or multiple choice run while you are out and about in Bali.</div>
+            </div>
+            <div style={styles.achievementRow}>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>Install note</div>
+              <div style={styles.muted}>If the Install button does not appear, open this site in Chrome and use the browser menu to add it to your home screen. Proper app icons also need to be uploaded into the public folder as icon-192.png and icon-512.png.</div>
             </div>
           </div>
         </div>
