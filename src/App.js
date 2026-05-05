@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-const STORAGE_KEY = "bali-bahasa-profiles-v3";
+const APP_VERSION = "1.1.0";
+const APP_VERSION_LABEL = "Version 1.1 — Conversation Mode";
+const STORAGE_KEY = "bali-bahasa-profiles-v4";
 
 const drills = [
   {
@@ -13,7 +15,12 @@ const drills = [
     answers: ["mau makan di mana"],
     options: ["mau makan di mana", "dari mana mau makan", "makan dari mana", "di mana kamu makan"],
     tip: "Use mau + verb + di mana.",
-    explanation: "Natural Indonesian: Mau makan di mana? Mau means want, makan means eat, and di mana means where."
+    explanation: "Natural Indonesian: Mau makan di mana? Mau means want, makan means eat, and di mana means where.",
+    breakdown: [
+      ["mau", "want"],
+      ["makan", "eat"],
+      ["di mana", "where"]
+    ]
   },
   {
     id: 2,
@@ -25,7 +32,12 @@ const drills = [
     answers: ["tidak tahu mungkin nanti", "nggak tahu mungkin nanti", "saya tidak tahu mungkin nanti"],
     options: ["nggak tahu mungkin nanti", "mungkin saya tidak tahu nanti", "saya mungkin tahu nanti", "nanti saya tidak mungkin"],
     tip: "Maybe later = mungkin nanti.",
-    explanation: "Natural version: Nggak tahu, mungkin nanti. Nggak tahu means do not know. Mungkin nanti means maybe later."
+    explanation: "Natural version: Nggak tahu, mungkin nanti. Nggak tahu means do not know. Mungkin nanti means maybe later.",
+    breakdown: [
+      ["nggak tahu", "do not know"],
+      ["mungkin", "maybe"],
+      ["nanti", "later"]
+    ]
   },
   {
     id: 3,
@@ -37,7 +49,11 @@ const drills = [
     answers: ["ini berapa", "berapa harganya"],
     options: ["ini berapa", "berapa ini harga", "ini harga mana", "berapa kamu"],
     tip: "Ini berapa? is very common in Bali.",
-    explanation: "Fast everyday version: Ini berapa? Ini means this. Berapa means how much."
+    explanation: "Fast everyday version: Ini berapa? Ini means this. Berapa means how much.",
+    breakdown: [
+      ["ini", "this"],
+      ["berapa", "how much"]
+    ]
   },
   {
     id: 4,
@@ -49,7 +65,12 @@ const drills = [
     answers: ["bisa bantu saya", "bisa bantu"],
     options: ["bisa bantu saya", "kamu bantu saya", "saya bantu kamu", "bantu saya bisa kamu"],
     tip: "Bisa bantu? is natural and short.",
-    explanation: "Natural version: Bisa bantu saya? Bisa means can. Bantu means help."
+    explanation: "Natural version: Bisa bantu saya? Bisa means can. Bantu means help.",
+    breakdown: [
+      ["bisa", "can"],
+      ["bantu", "help"],
+      ["saya", "me / I"]
+    ]
   },
   {
     id: 5,
@@ -61,7 +82,13 @@ const drills = [
     answers: ["saya mau pesan makanan", "mau pesan makanan"],
     options: ["saya mau pesan makanan", "makanan saya mau", "pesan saya makanan mau", "mau saya makanan"],
     tip: "Mau pesan... is a core pattern.",
-    explanation: "Natural version: Saya mau pesan makanan. Pesan means order. Makanan means food."
+    explanation: "Natural version: Saya mau pesan makanan. Pesan means order. Makanan means food.",
+    breakdown: [
+      ["saya", "I"],
+      ["mau", "want"],
+      ["pesan", "order"],
+      ["makanan", "food"]
+    ]
   },
   {
     id: 6,
@@ -73,7 +100,12 @@ const drills = [
     answers: ["yang enak apa", "apa yang kamu sarankan", "apa yang anda sarankan"],
     options: ["yang enak apa", "apa enak yang", "sarankan saya apa", "apa kamu enak"],
     tip: "Yang enak apa? is simple and natural.",
-    explanation: "Very natural Bali version: Yang enak apa? Literally: what is tasty or good?"
+    explanation: "Very natural Bali version: Yang enak apa? Literally: what is tasty or good?",
+    breakdown: [
+      ["yang", "the one / which"],
+      ["enak", "tasty / good"],
+      ["apa", "what"]
+    ]
   },
   {
     id: 7,
@@ -85,7 +117,13 @@ const drills = [
     answers: ["sekarang saya tinggal di sanur", "saya tinggal di sanur sekarang"],
     options: ["sekarang saya tinggal di sanur", "saya tinggal sekarang sanur", "sanur tinggal saya sekarang", "saya sekarang dari sanur"],
     tip: "Sekarang can go at the start or end.",
-    explanation: "Natural version: Sekarang saya tinggal di Sanur. Tinggal means live or stay."
+    explanation: "Natural version: Sekarang saya tinggal di Sanur. Tinggal means live or stay.",
+    breakdown: [
+      ["sekarang", "now"],
+      ["saya", "I"],
+      ["tinggal", "live / stay"],
+      ["di Sanur", "in Sanur"]
+    ]
   },
   {
     id: 8,
@@ -97,7 +135,13 @@ const drills = [
     answers: ["sekarang lagi sibuk sedikit", "saya lagi sibuk sedikit sekarang", "sekarang saya lagi sibuk sedikit"],
     options: ["sekarang lagi sibuk sedikit", "sibuk saya sedikit sekarang", "saya sekarang sibuk mana", "lagi sedikit saya sekarang"],
     tip: "Lagi = currently doing or being.",
-    explanation: "Natural version: Sekarang lagi sibuk sedikit. Lagi sibuk means currently busy."
+    explanation: "Natural version: Sekarang lagi sibuk sedikit. Lagi sibuk means currently busy.",
+    breakdown: [
+      ["sekarang", "now"],
+      ["lagi", "currently"],
+      ["sibuk", "busy"],
+      ["sedikit", "a little"]
+    ]
   },
   {
     id: 9,
@@ -109,7 +153,11 @@ const drills = [
     answers: ["sebentar ya", "tolong tunggu sebentar", "tunggu sebentar"],
     options: ["sebentar ya", "tunggu ya mana", "tolong sedikit tunggu mana", "sebentar kamu"],
     tip: "Sebentar ya is friendly and common.",
-    explanation: "Friendly version: Sebentar ya. Sebentar means a moment."
+    explanation: "Friendly version: Sebentar ya. Sebentar means a moment.",
+    breakdown: [
+      ["sebentar", "a moment"],
+      ["ya", "softener / okay"]
+    ]
   },
   {
     id: 10,
@@ -121,7 +169,11 @@ const drills = [
     answers: ["yang ini ya", "ini ya", "yang ini tolong"],
     options: ["yang ini ya", "ini yang mana", "yang tolong ini", "ini kamu ya"],
     tip: "Yang ini ya is very usable in Bali.",
-    explanation: "Natural version: Yang ini ya. Yang ini means this one."
+    explanation: "Natural version: Yang ini ya. Yang ini means this one.",
+    breakdown: [
+      ["yang ini", "this one"],
+      ["ya", "softener / okay"]
+    ]
   },
   {
     id: 11,
@@ -133,7 +185,12 @@ const drills = [
     answers: ["sudah terima kasih", "belum nanti", "belum makan"],
     options: ["Sudah, terima kasih", "Saya dari Australia", "Mau pesan makanan", "Ini berapa"],
     tip: "Choose a natural short reply.",
-    explanation: "Common replies: Sudah, terima kasih. Belum, nanti. Sudah makan? literally means have you eaten yet?"
+    explanation: "Common replies: Sudah, terima kasih. Belum, nanti. Sudah makan? literally means have you eaten yet?",
+    breakdown: [
+      ["sudah", "already"],
+      ["makan", "eat"],
+      ["belum", "not yet"]
+    ]
   },
   {
     id: 12,
@@ -145,7 +202,12 @@ const drills = [
     answers: ["saya dari australia", "dari australia"],
     options: ["Saya dari Australia", "Saya tinggal di warung", "Ini berapa", "Nanti saja"],
     tip: "Saya dari Australia is safe and natural.",
-    explanation: "Natural version: Saya dari Australia. Dari mana? means where are you from?"
+    explanation: "Natural version: Saya dari Australia. Dari mana? means where are you from?",
+    breakdown: [
+      ["kamu", "you"],
+      ["dari mana", "from where"],
+      ["saya dari", "I am from"]
+    ]
   },
   {
     id: 13,
@@ -157,7 +219,13 @@ const drills = [
     answers: ["tolong matikan ac kalau keluar", "kalau keluar tolong matikan ac"],
     options: ["tolong matikan ac kalau keluar", "keluar ac tolong mati", "tolong ac keluar mati", "matikan keluar saya"],
     tip: "Kalau = if or when.",
-    explanation: "Natural version: Tolong matikan AC kalau keluar. Matikan means turn off."
+    explanation: "Natural version: Tolong matikan AC kalau keluar. Matikan means turn off.",
+    breakdown: [
+      ["tolong", "please"],
+      ["matikan", "turn off"],
+      ["AC", "air conditioner"],
+      ["kalau keluar", "when going out"]
+    ]
   },
   {
     id: 14,
@@ -169,7 +237,13 @@ const drills = [
     answers: ["bisa jemput kami jam 7 malam ini", "bisa jemput kita jam 7 malam ini"],
     options: ["bisa jemput kami jam 7 malam ini", "jemput bisa malam kami", "jam 7 bisa kamu kami", "malam ini kamu dari mana"],
     tip: "Jam 7 malam ini = at 7 tonight.",
-    explanation: "Natural version: Bisa jemput kami jam 7 malam ini? Jemput means pick up."
+    explanation: "Natural version: Bisa jemput kami jam 7 malam ini? Jemput means pick up.",
+    breakdown: [
+      ["bisa", "can"],
+      ["jemput", "pick up"],
+      ["kami / kita", "us"],
+      ["jam 7 malam ini", "7 tonight"]
+    ]
   },
   {
     id: 15,
@@ -181,7 +255,13 @@ const drills = [
     answers: ["tamunya sudah datang belum", "sudah datang belum tamunya"],
     options: ["tamunya sudah datang belum", "tamu datang dari mana", "sudah tamu di mana", "belum mana datang"],
     tip: "Sudah ... belum is a useful pattern.",
-    explanation: "Natural version: Tamunya sudah datang belum? This pattern means has X happened yet?"
+    explanation: "Natural version: Tamunya sudah datang belum? This pattern means has X happened yet?",
+    breakdown: [
+      ["tamunya", "the guests"],
+      ["sudah", "already"],
+      ["datang", "arrive / come"],
+      ["belum", "not yet / yet"]
+    ]
   },
   {
     id: 16,
@@ -193,7 +273,13 @@ const drills = [
     answers: ["i will message later i am a bit busy right now", "ill message later im a bit busy right now"],
     options: ["I will message later, I am a bit busy right now", "Where do you want to eat?", "How much is this?", "I am from Australia"],
     tip: "Listen and choose the correct meaning.",
-    explanation: "Meaning: I will message later, I am a bit busy right now."
+    explanation: "Meaning: I will message later, I am a bit busy right now.",
+    breakdown: [
+      ["nanti", "later"],
+      ["saya kirim pesan", "I send a message"],
+      ["lagi sibuk", "currently busy"],
+      ["sedikit", "a little"]
+    ]
   },
   {
     id: 17,
@@ -205,7 +291,13 @@ const drills = [
     answers: ["please wait a moment"],
     options: ["Please wait a moment", "Can you help me?", "Where are you from?", "This one please"],
     tip: "Sebentar = a moment.",
-    explanation: "Meaning: Please wait a moment."
+    explanation: "Meaning: Please wait a moment.",
+    breakdown: [
+      ["tolong", "please"],
+      ["tunggu", "wait"],
+      ["sebentar", "a moment"],
+      ["ya", "softener / okay"]
+    ]
   },
   {
     id: 18,
@@ -217,7 +309,92 @@ const drills = [
     answers: ["what is good here", "what do you recommend here"],
     options: ["What is good here?", "How much is this?", "I live in Sanur now", "We will go later"],
     tip: "Enak = tasty or good.",
-    explanation: "Meaning: What is good here?"
+    explanation: "Meaning: What is good here?",
+    breakdown: [
+      ["yang enak", "the tasty/good one"],
+      ["apa", "what"],
+      ["di sini", "here"]
+    ]
+  }
+];
+
+const conversationDrills = [
+  {
+    id: "c1",
+    category: "Warung",
+    scenario: "Ordering food at a warung",
+    theySay: "Mau pesan apa?",
+    prompt: "Choose a natural reply.",
+    answers: ["saya mau pesan nasi goreng"],
+    options: ["Saya mau pesan nasi goreng", "Saya dari Australia", "Jam 7 malam ini", "Tolong matikan AC"],
+    explanation: "They ask what you want to order. A natural reply is: Saya mau pesan nasi goreng.",
+    breakdown: [
+      ["mau pesan apa", "what do you want to order"],
+      ["saya mau pesan", "I want to order"],
+      ["nasi goreng", "fried rice"]
+    ]
+  },
+  {
+    id: "c2",
+    category: "Driver",
+    scenario: "Talking to a driver",
+    theySay: "Besok mau dijemput jam berapa?",
+    prompt: "Choose a useful reply.",
+    answers: ["jam 10 pagi bagus"],
+    options: ["Jam 10 pagi bagus", "Ini berapa?", "Saya mau pesan makanan", "Sudah makan?"],
+    explanation: "The driver asks what time you want to be picked up tomorrow. Jam 10 pagi bagus means 10am is good.",
+    breakdown: [
+      ["besok", "tomorrow"],
+      ["dijemput", "be picked up"],
+      ["jam berapa", "what time"],
+      ["jam 10 pagi", "10 in the morning"]
+    ]
+  },
+  {
+    id: "c3",
+    category: "Staff",
+    scenario: "Villa staff asks about cleaning",
+    theySay: "Besok cleaning jam berapa?",
+    prompt: "Choose the best reply.",
+    answers: ["jam 11 pagi ya"],
+    options: ["Jam 11 pagi ya", "Yang enak apa?", "Saya tinggal di Sanur", "Tidak tahu mungkin nanti"],
+    explanation: "They ask what time cleaning should be tomorrow. Jam 11 pagi ya means 11am, please/okay.",
+    breakdown: [
+      ["besok", "tomorrow"],
+      ["cleaning", "cleaning"],
+      ["jam berapa", "what time"],
+      ["jam 11 pagi", "11 in the morning"]
+    ]
+  },
+  {
+    id: "c4",
+    category: "Shopping",
+    scenario: "Buying something at a shop",
+    theySay: "Mau yang mana?",
+    prompt: "Choose the natural reply.",
+    answers: ["yang ini ya"],
+    options: ["Yang ini ya", "Besok pagi", "Saya lagi sibuk", "Bisa jemput kami"],
+    explanation: "They ask which one you want. Yang ini ya means this one, please/okay.",
+    breakdown: [
+      ["mau", "want"],
+      ["yang mana", "which one"],
+      ["yang ini", "this one"]
+    ]
+  },
+  {
+    id: "c5",
+    category: "Small Talk",
+    scenario: "Casual local small talk",
+    theySay: "Sudah lama tinggal di Bali?",
+    prompt: "Choose a simple reply.",
+    answers: ["belum lama"],
+    options: ["Belum lama", "Ini berapa?", "Mau pesan makanan", "Tolong tunggu sebentar"],
+    explanation: "They ask if you have lived in Bali for a long time. Belum lama means not long yet.",
+    breakdown: [
+      ["sudah lama", "for a long time already"],
+      ["tinggal", "live / stay"],
+      ["belum lama", "not long yet"]
+    ]
   }
 ];
 
@@ -236,6 +413,15 @@ function normalize(text) {
     .replace(/[?.!,]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function shuffleArray(items) {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
 }
 
 function getLevelData(score) {
@@ -276,6 +462,8 @@ function blankUserState() {
   return {
     started: false,
     currentDrillId: getRandomDrillId(drills),
+    currentConversationId: conversationDrills[0].id,
+    shuffledOptions: {},
     input: "",
     score: 0,
     streak: 0,
@@ -551,6 +739,8 @@ export default function App() {
   }, []);
 
   const pool = useMemo(() => {
+    if (currentUser.playMode === "conversation") return conversationDrills;
+
     let filtered = drills;
     if (currentUser.mode !== "all") {
       filtered = filtered.filter((d) => d.category.toLowerCase() === currentUser.mode);
@@ -564,7 +754,32 @@ export default function App() {
     return filtered.length ? filtered : drills;
   }, [currentUser.mode, currentUser.showReviewOnly, currentUser.wrongIds, currentUser.playMode]);
 
-  const current = pool.find((d) => d.id === currentUser.currentDrillId) || pool[0] || drills[0];
+  const current = useMemo(() => {
+    if (currentUser.playMode === "conversation") {
+      return conversationDrills.find((d) => d.id === currentUser.currentConversationId) || conversationDrills[0];
+    }
+    return pool.find((d) => d.id === currentUser.currentDrillId) || pool[0] || drills[0];
+  }, [pool, currentUser.currentDrillId, currentUser.currentConversationId, currentUser.playMode]);
+
+  const currentOptions = useMemo(() => {
+    const key = `${currentUser.playMode}-${current.id}`;
+    const saved = currentUser.shuffledOptions?.[key];
+    if (saved && saved.length) return saved;
+    return shuffleArray(current.options || []);
+  }, [current, currentUser.playMode, currentUser.shuffledOptions]);
+
+  useEffect(() => {
+    const key = `${currentUser.playMode}-${current.id}`;
+    if (!currentUser.shuffledOptions?.[key]) {
+      updateUser({
+        shuffledOptions: {
+          ...(currentUser.shuffledOptions || {}),
+          [key]: shuffleArray(current.options || [])
+        }
+      });
+    }
+  }, [current.id, currentUser.playMode]);
+
   const levelData = getLevelData(currentUser.score);
   const categories = ["all", ...Array.from(new Set(drills.map((d) => d.category.toLowerCase())))];
   const progressToNext = Math.min(100, currentUser.xp % 100);
@@ -626,6 +841,12 @@ export default function App() {
   };
 
   const moveToNextDrill = () => {
+    if (currentUser.playMode === "conversation") {
+      const available = conversationDrills.filter((item) => item.id !== current.id);
+      const next = available[Math.floor(Math.random() * available.length)] || conversationDrills[0];
+      updateUser({ currentConversationId: next.id });
+      return;
+    }
     const next = chooseAdaptiveDrill(pool, currentUser.drillStats || {}, current.id);
     updateUser({ currentDrillId: next ? next.id : getRandomDrillId(pool) });
   };
@@ -763,6 +984,22 @@ export default function App() {
     setShowProfileManager(true);
   };
 
+  const renderBreakdown = (breakdown) => {
+    if (!breakdown || !breakdown.length) return null;
+    return (
+      <div style={{ marginTop: 12, ...styles.achievementRow }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Phrase Breakdown</div>
+        <div style={{ display: "grid", gap: 6 }}>
+          {breakdown.map(([phrase, meaning]) => (
+            <div key={`${phrase}-${meaning}`} style={{ color: "#cbd5e1", fontSize: 14 }}>
+              <strong style={{ color: "#86efac" }}>{phrase}</strong> = {meaning}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
   if (showProfileManager) {
     return (
       <div style={styles.page}>
@@ -800,6 +1037,7 @@ export default function App() {
               <button style={styles.buttonPrimary} onClick={createProfile}>Add</button>
             </div>
           </div>
+          <div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div>
         </div>
       </div>
     );
@@ -820,14 +1058,14 @@ export default function App() {
             Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span>
           </h1>
           <p style={styles.heroText}>
-            Scenario-based practice for Bali life. Short drills, adaptive repetition, voice input, and clear corrections focused on real conversation.
+            Scenario-based practice for Bali life. Includes adaptive drills, phrase breakdowns, real conversation mode, voice input, and separate profiles.
           </p>
 
           <div style={styles.card}>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
               <div style={styles.smallStat}><div style={{ fontSize: 20 }}>🏆</div><div style={{ fontWeight: 800 }}>5</div><div style={styles.muted}>Levels</div></div>
-              <div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔥</div><div style={{ fontWeight: 800 }}>Streaks</div><div style={styles.muted}>Momentum</div></div>
-              <div style={styles.smallStat}><div style={{ fontSize: 20 }}>💬</div><div style={{ fontWeight: 800 }}>Bali</div><div style={styles.muted}>Focused</div></div>
+              <div style={styles.smallStat}><div style={{ fontSize: 20 }}>💬</div><div style={{ fontWeight: 800 }}>Real</div><div style={styles.muted}>Conversation</div></div>
+              <div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔀</div><div style={{ fontWeight: 800 }}>Random</div><div style={styles.muted}>Answers</div></div>
             </div>
 
             <div style={{ marginBottom: 14 }}>
@@ -849,6 +1087,7 @@ export default function App() {
               Start Training
             </button>
           </div>
+          <div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div>
         </div>
       </div>
     );
@@ -920,7 +1159,8 @@ export default function App() {
                     mode: cat,
                     currentDrillId: getRandomDrillId(nextPool.length ? nextPool : drills),
                     feedback: null,
-                    input: ""
+                    input: "",
+                    shuffledOptions: {}
                   });
                 }}
               >
@@ -930,12 +1170,13 @@ export default function App() {
           </div>
 
           <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-            <button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => updateUser({ playMode: "typing" })}>🧠 Typing</button>
-            <button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => updateUser({ playMode: "multiple" })}>🎯 Multiple Choice</button>
-            <button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => updateUser({ playMode: "listening" })}>🎧 Listening</button>
+            <button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => updateUser({ playMode: "typing", shuffledOptions: {} })}>🧠 Typing</button>
+            <button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => updateUser({ playMode: "multiple", shuffledOptions: {} })}>🎯 Multiple Choice</button>
+            <button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => updateUser({ playMode: "listening", shuffledOptions: {} })}>🎧 Listening</button>
+            <button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => updateUser({ playMode: "conversation", shuffledOptions: {} })}>💬 Conversation</button>
             <button
               style={buttonStyle(currentUser.showReviewOnly, true)}
-              onClick={() => updateUser({ showReviewOnly: !currentUser.showReviewOnly, currentDrillId: getRandomDrillId(drills) })}
+              onClick={() => updateUser({ showReviewOnly: !currentUser.showReviewOnly, currentDrillId: getRandomDrillId(drills), shuffledOptions: {} })}
             >
               🔁 Review Mistakes
             </button>
@@ -958,9 +1199,17 @@ export default function App() {
               {current.direction}
             </div>
 
-            <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>
-              {current.prompt}
-            </h2>
+            {currentUser.playMode === "conversation" ? (
+              <div style={{ ...styles.achievementRow, marginBottom: 12 }}>
+                <div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div>
+                <div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current.theySay}</div>
+                <div style={{ marginTop: 8, color: "#cbd5e1" }}>{current.prompt}</div>
+              </div>
+            ) : (
+              <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>
+                {current.prompt}
+              </h2>
+            )}
 
             {currentUser.playMode === "typing" ? (
               <>
@@ -983,12 +1232,14 @@ export default function App() {
               </>
             ) : (
               <div style={{ display: "grid", gap: 8 }}>
-                {current.options.map((option) => (
+                {currentOptions.map((option) => (
                   <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>
                     {option}
                   </button>
                 ))}
-                <button style={styles.button} onClick={() => speak(current.prompt)}>🔊 Play Audio</button>
+                <button style={styles.button} onClick={() => speak(currentUser.playMode === "conversation" ? current.theySay : current.prompt)}>
+                  🔊 Play Audio
+                </button>
               </div>
             )}
 
@@ -1010,6 +1261,7 @@ export default function App() {
                 <div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>
                   {currentUser.feedback.explanation}
                 </div>
+                {renderBreakdown(current.breakdown)}
               </div>
             ) : null}
           </div>
@@ -1069,7 +1321,7 @@ export default function App() {
             <div style={styles.achievementRow}>
               <div style={{ fontWeight: 800, marginBottom: 6 }}>Best use on your phone</div>
               <div style={styles.muted}>
-                Do one 5 minute typing run, then one listening or multiple choice run while you are out and about in Bali.
+                Do one 5 minute typing run, then one listening, multiple choice, or conversation run while you are out and about in Bali.
               </div>
             </div>
 
@@ -1078,6 +1330,12 @@ export default function App() {
               <div style={styles.muted}>
                 If the Install button does not appear, open this site in Chrome and use the browser menu to add it to your home screen.
               </div>
+            </div>
+
+            <div style={styles.achievementRow}>
+              <div style={{ fontWeight: 800, marginBottom: 6 }}>App version</div>
+              <div style={styles.muted}>{APP_VERSION_LABEL}</div>
+              <div style={{ ...styles.muted, fontSize: 12, marginTop: 4 }}>Build {APP_VERSION}</div>
             </div>
           </div>
         </div>
