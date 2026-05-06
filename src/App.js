@@ -1,10 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { createWorker } from "tesseract.js";
 import baliBahasaDataset from "./dataset";
 
-const APP_VERSION = "1.3.0";
-const APP_VERSION_LABEL = "Version 1.3 — Dataset Connected";
-const STORAGE_KEY = "bali-bahasa-profiles-v6";
+const APP_VERSION = "1.4.0";
+const APP_VERSION_LABEL = "Version 1.4 — Manual Phrasebook Training";
+const STORAGE_KEY = "bali-bahasa-profiles-v8";
 
 function normalize(text) {
   return String(text || "")
@@ -205,7 +204,50 @@ function createConversationDrills(dataset) {
   return userTurns;
 }
 
-function buildDrills(dataset) {
+function createPhrasebookDrills(phrasebook) {
+  const items = phrasebook || [];
+
+  const phraseItems = items.filter((item) => item.idn && item.eng);
+  const translate = phraseItems.map((item) => ({
+    id: `pb-t-${item.id}`,
+    sourceId: item.id,
+    type: "phrasebook",
+    category: "My Phrasebook",
+    topicId: "phrasebook",
+    scenario: "Personal phrasebook",
+    direction: "Translate into Bahasa Indonesia",
+    prompt: item.eng,
+    answers: [item.idn],
+    options: shuffleArray([item.idn, ...shuffleArray(phraseItems.filter((other) => other.id !== item.id)).slice(0, 3).map((other) => other.idn)]),
+    tip: item.note || "Personal phrase saved by you.",
+    explanation: `${item.idn} = ${item.eng}`,
+    breakdown: [[item.idn, item.eng]],
+    level: 1,
+    tags: ["phrasebook", item.kind || "phrase"]
+  }));
+
+  const listening = phraseItems.map((item) => ({
+    id: `pb-l-${item.id}`,
+    sourceId: item.id,
+    type: "phrasebook_listening",
+    category: "My Phrasebook",
+    topicId: "phrasebook",
+    scenario: "Personal phrasebook listening",
+    direction: "Choose the correct meaning",
+    prompt: item.idn,
+    answers: [normalize(item.eng)],
+    options: shuffleArray([item.eng, ...shuffleArray(phraseItems.filter((other) => other.id !== item.id)).slice(0, 3).map((other) => other.eng)]),
+    tip: item.note || "Listen and choose the meaning.",
+    explanation: `${item.idn} = ${item.eng}`,
+    breakdown: [[item.idn, item.eng]],
+    level: 1,
+    tags: ["phrasebook", item.kind || "phrase"]
+  }));
+
+  return { translate, listening, all: [...translate, ...listening] };
+}
+
+function buildBaseDrills(dataset) {
   const translate = createTranslationDrills(dataset);
   const listening = createListeningDrills(dataset);
   const words = createWordDrills(dataset);
@@ -213,9 +255,10 @@ function buildDrills(dataset) {
   return { translate, listening, words, conversation, all: [...translate, ...listening, ...words] };
 }
 
-const generatedContent = buildDrills(baliBahasaDataset);
+const baseContent = buildBaseDrills(baliBahasaDataset);
 const topicList = [
   { id: "all", label: "All" },
+  { id: "phrasebook", label: "My Phrasebook" },
   ...(baliBahasaDataset?.topics || []).map((topic) => ({ id: topic.id, label: topic.label }))
 ];
 
@@ -248,7 +291,7 @@ function chooseAdaptiveDrill(items, stats, excludeId) {
 function blankUserState() {
   return {
     started: false,
-    currentDrillId: getRandomDrillId(generatedContent.translate),
+    currentDrillId: getRandomDrillId(baseContent.translate),
     shuffledOptions: {},
     input: "",
     score: 0,
@@ -268,9 +311,7 @@ function blankUserState() {
     comboMultiplier: 1,
     drillStats: {},
     phrasebook: [],
-    scanText: "",
-    scanStatus: "",
-    scanImageName: ""
+    phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" }
   };
 }
 
@@ -288,7 +329,8 @@ const styles = {
   buttonPrimary: { minHeight: 48, borderRadius: 18, border: "none", background: "#10b981", color: "white", padding: "0 16px", cursor: "pointer", fontWeight: 800 },
   buttonActive: { background: "rgba(34,211,238,0.18)", border: "1px solid rgba(103,232,249,0.28)", color: "#d7fbff" },
   buttonWarn: { background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.22)", color: "#fde68a" },
-  input: { flex: 1, minHeight: 50, background: "rgba(15,23,42,0.82)", border: "1px solid rgba(255,255,255,0.12)", color: "white", borderRadius: 18, padding: "0 16px", fontSize: 16, outline: "none", boxSizing: "border-box", minWidth: 0 },
+  input: { width: "100%", minHeight: 50, background: "rgba(15,23,42,0.82)", border: "1px solid rgba(255,255,255,0.12)", color: "white", borderRadius: 18, padding: "0 16px", fontSize: 16, outline: "none", boxSizing: "border-box", minWidth: 0 },
+  textarea: { width: "100%", minHeight: 86, background: "rgba(15,23,42,0.82)", border: "1px solid rgba(255,255,255,0.12)", color: "white", borderRadius: 18, padding: 14, fontSize: 16, outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.45 },
   progressTrack: { width: "100%", height: 9, background: "rgba(255,255,255,0.08)", borderRadius: 999, overflow: "hidden" },
   badge: { display: "inline-flex", alignItems: "center", padding: "6px 10px", borderRadius: 999, background: "rgba(34,211,238,0.14)", color: "#c8fbff", border: "1px solid rgba(34,211,238,0.22)", fontSize: 12, fontWeight: 700 },
   answerButton: { textAlign: "left", minHeight: 50, padding: "12px 14px", borderRadius: 18, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(15,23,42,0.82)", color: "white", cursor: "pointer", fontWeight: 600, lineHeight: 1.35 },
@@ -310,9 +352,17 @@ export default function App() {
   const [installReady, setInstallReady] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const recognitionRef = useRef(null);
-  const fileInputRef = useRef(null);
 
   const currentUser = profiles[activeProfile] || blankUserState();
+  const phrasebookContent = useMemo(() => createPhrasebookDrills(currentUser.phrasebook || []), [currentUser.phrasebook]);
+
+  const combinedContent = useMemo(() => ({
+    translate: [...baseContent.translate, ...phrasebookContent.translate],
+    listening: [...baseContent.listening, ...phrasebookContent.listening],
+    words: baseContent.words,
+    conversation: baseContent.conversation,
+    phrasebook: phrasebookContent.all
+  }), [phrasebookContent]);
 
   const updateUser = (patch) => {
     setProfiles((prev) => ({ ...prev, [activeProfile]: { ...blankUserState(), ...(prev[activeProfile] || {}), ...patch } }));
@@ -367,17 +417,19 @@ export default function App() {
   }, []);
 
   const pool = useMemo(() => {
-    if (currentUser.playMode === "conversation") return generatedContent.conversation;
-    if (currentUser.playMode === "listening") return generatedContent.listening;
-    if (currentUser.playMode === "words") return generatedContent.words;
+    if (currentUser.playMode === "conversation") return combinedContent.conversation;
+    if (currentUser.playMode === "listening") return combinedContent.listening;
+    if (currentUser.playMode === "words") return combinedContent.words;
+    if (currentUser.playMode === "phrasebook") return combinedContent.phrasebook;
 
-    let filtered = generatedContent.translate;
-    if (currentUser.mode !== "all") filtered = filtered.filter((d) => d.topicId === currentUser.mode);
+    let filtered = combinedContent.translate;
+    if (currentUser.mode === "phrasebook") filtered = combinedContent.phrasebook.filter((d) => d.type === "phrasebook");
+    if (currentUser.mode !== "all" && currentUser.mode !== "phrasebook") filtered = filtered.filter((d) => d.topicId === currentUser.mode);
     if (currentUser.showReviewOnly) filtered = filtered.filter((d) => currentUser.wrongIds.includes(d.id));
-    return filtered.length ? filtered : generatedContent.translate;
-  }, [currentUser.mode, currentUser.showReviewOnly, currentUser.wrongIds, currentUser.playMode]);
+    return filtered.length ? filtered : combinedContent.translate;
+  }, [currentUser.mode, currentUser.showReviewOnly, currentUser.wrongIds, currentUser.playMode, combinedContent]);
 
-  const current = useMemo(() => pool.find((d) => d.id === currentUser.currentDrillId) || pool[0] || generatedContent.translate[0], [pool, currentUser.currentDrillId]);
+  const current = useMemo(() => pool.find((d) => d.id === currentUser.currentDrillId) || pool[0] || combinedContent.translate[0], [pool, currentUser.currentDrillId, combinedContent.translate]);
 
   const currentOptions = useMemo(() => {
     const key = `${currentUser.playMode}-${current?.id}`;
@@ -387,7 +439,7 @@ export default function App() {
   }, [current, currentUser.playMode, currentUser.shuffledOptions]);
 
   useEffect(() => {
-    if (!current || currentUser.playMode === "photo") return;
+    if (!current || currentUser.playMode === "phrasebook_edit") return;
     const key = `${currentUser.playMode}-${current.id}`;
     if (!currentUser.shuffledOptions?.[key]) {
       updateUser({ shuffledOptions: { ...(currentUser.shuffledOptions || {}), [key]: shuffleArray(current.options || []) } });
@@ -414,8 +466,15 @@ export default function App() {
   const progressFill = (value) => ({ width: `${Math.max(0, Math.min(100, value))}%`, height: "100%", background: "linear-gradient(90deg, #34d399 0%, #10b981 100%)" });
 
   const switchMode = (playMode) => {
-    const pools = { typing: generatedContent.translate, multiple: generatedContent.translate, listening: generatedContent.listening, words: generatedContent.words, conversation: generatedContent.conversation };
-    const nextPool = pools[playMode] || generatedContent.translate;
+    const pools = {
+      typing: combinedContent.translate,
+      multiple: combinedContent.translate,
+      listening: combinedContent.listening,
+      words: combinedContent.words,
+      conversation: combinedContent.conversation,
+      phrasebook: combinedContent.phrasebook
+    };
+    const nextPool = pools[playMode] || combinedContent.translate;
     updateUser({ playMode, currentDrillId: getRandomDrillId(nextPool), shuffledOptions: {}, feedback: null, input: "" });
   };
 
@@ -441,14 +500,17 @@ export default function App() {
 
   const startVoiceInput = () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) return;
+    if (!SpeechRecognition) {
+      updateUser({ feedback: { ok: false, text: "Voice input is not available here", explanation: "Please type your answer manually." } });
+      return;
+    }
     if (recognitionRef.current) recognitionRef.current.stop();
     const recognition = new SpeechRecognition();
     recognition.lang = "id-ID";
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     recognition.onresult = (event) => updateUser({ input: event.results?.[0]?.[0]?.transcript || "" });
-    recognition.onerror = () => updateUser({ feedback: { ok: false, text: "Voice input did not work", explanation: "Please try again or type your answer manually." } });
+    recognition.onerror = () => updateUser({ feedback: { ok: false, text: "Voice input is not available here", explanation: "Some Android browsers and installed PWAs block speech recognition. Please type your answer manually, or open the app in Chrome and allow microphone permission." } });
     recognitionRef.current = recognition;
     recognition.start();
   };
@@ -477,35 +539,27 @@ export default function App() {
     checkAnswer(currentUser.input);
   };
 
-  const handlePhotoScan = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    updateUser({ scanStatus: "Reading photo... this may take a moment.", scanImageName: file.name, scanText: "" });
-    try {
-      const worker = await createWorker("ind+eng");
-      const result = await worker.recognize(file);
-      await worker.terminate();
-      const text = result?.data?.text?.trim() || "";
-      updateUser({ scanText: text || "No clear text found. Try a sharper photo.", scanStatus: text ? "Text extracted. Review it, then save useful phrases." : "No clear text found. Try a sharper photo." });
-    } catch (error) {
-      console.error("OCR failed", error);
-      updateUser({ scanStatus: "Could not read the photo. Try a clearer image or better lighting." });
+  const addPhrasebookItem = () => {
+    const form = currentUser.phrasebookForm || {};
+    const idn = (form.idn || "").trim();
+    const eng = (form.eng || "").trim();
+    const note = (form.note || "").trim();
+    const kind = form.kind || "phrase";
+    if (!idn || !eng) {
+      updateUser({ feedback: { ok: false, text: "Missing phrase or meaning", explanation: "Add both the Bahasa Indonesia phrase/word and the English meaning." } });
+      return;
     }
+    const item = { id: Date.now(), idn, eng, note, kind, createdAt: new Date().toISOString() };
+    updateUser({
+      phrasebook: [item, ...(currentUser.phrasebook || [])],
+      phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" },
+      feedback: { ok: true, text: "Added to training", explanation: "This item is now included in Phrasebook, Typing, and Listening training." }
+    });
   };
 
-  const saveScannedPhrase = () => {
-    const text = (currentUser.scanText || "").trim();
-    if (!text) return;
-    const newItem = { id: Date.now(), text, createdAt: new Date().toISOString(), source: currentUser.scanImageName || "photo" };
-    updateUser({ phrasebook: [newItem, ...(currentUser.phrasebook || [])], feedback: { ok: true, text: "Saved to phrasebook", explanation: "You can review this phrase later." } });
+  const removePhrasebookItem = (id) => {
+    updateUser({ phrasebook: (currentUser.phrasebook || []).filter((item) => item.id !== id), shuffledOptions: {} });
   };
-
-  const clearScan = () => {
-    updateUser({ scanText: "", scanStatus: "", scanImageName: "" });
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const removePhrasebookItem = (id) => updateUser({ phrasebook: (currentUser.phrasebook || []).filter((item) => item.id !== id) });
 
   const installApp = async () => {
     if (!deferredPrompt) {
@@ -550,28 +604,74 @@ export default function App() {
     );
   };
 
-  const renderPhotoMode = () => (
-    <div style={styles.card}>
-      <div style={styles.row}><div style={styles.badge}>Photo Scan</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>OCR phrase capture</div></div>
-      <h2 style={{ fontSize: 22, lineHeight: 1.25, marginTop: 14, marginBottom: 8, color: "#fff", fontWeight: 800 }}>Scan Indonesian text from a photo</h2>
-      <p style={{ ...styles.muted, lineHeight: 1.5 }}>Use this for menus, signs, WhatsApp screenshots, receipts, or villa messages.</p>
-      <input ref={fileInputRef} type="file" accept="image/*" capture="environment" onChange={handlePhotoScan} style={{ display: "none" }} />
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginTop: 14 }}><button style={styles.buttonPrimary} onClick={() => fileInputRef.current?.click()}>📷 Take / Upload Photo</button><button style={styles.button} onClick={clearScan}>Clear</button></div>
-      {currentUser.scanStatus ? <div style={{ marginTop: 12, color: "#86efac", fontSize: 14 }}>{currentUser.scanStatus}</div> : null}
-      {currentUser.scanText ? <div style={{ marginTop: 14, ...styles.achievementRow }}><div style={{ fontWeight: 800, marginBottom: 8 }}>Extracted Text</div><textarea value={currentUser.scanText} onChange={(event) => updateUser({ scanText: event.target.value })} style={{ width: "100%", minHeight: 130, resize: "vertical", borderRadius: 16, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(15,23,42,0.82)", color: "white", padding: 12, boxSizing: "border-box", fontSize: 15, lineHeight: 1.45 }} /><button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 10 }} onClick={saveScannedPhrase}>Save to Phrasebook</button></div> : null}
-      <div style={{ marginTop: 16 }}><h3 style={styles.sectionTitle}>📘 My Phrasebook</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => <div key={item.id} style={styles.achievementRow}><div style={{ whiteSpace: "pre-wrap", lineHeight: 1.45, color: "#e5edf7" }}>{item.text}</div><div style={{ display: "flex", gap: 8, marginTop: 10 }}><button style={styles.button} onClick={() => speak(item.text)}>🔊 Listen</button><button style={buttonStyle(false, true)} onClick={() => removePhrasebookItem(item.id)}>Delete</button></div></div>) : <div style={{ ...styles.muted, lineHeight: 1.5 }}>No saved phrases yet. Scan a menu, sign, or message to start building your phrasebook.</div>}</div></div>
-    </div>
-  );
+  const renderPhrasebookManager = () => {
+    const form = currentUser.phrasebookForm || { idn: "", eng: "", note: "", kind: "phrase" };
+    return (
+      <div style={styles.card}>
+        <div style={styles.row}>
+          <div style={styles.badge}>My Phrasebook</div>
+          <div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>{(currentUser.phrasebook || []).length} saved</div>
+        </div>
+        <h2 style={{ fontSize: 22, lineHeight: 1.25, marginTop: 14, marginBottom: 8, color: "#fff", fontWeight: 800 }}>Add your own words and phrases</h2>
+        <p style={{ ...styles.muted, lineHeight: 1.5 }}>Add phrases from real life, WhatsApp messages, staff conversations, signs, menus, or anything you want to practise. Saved items are automatically included in training.</p>
+
+        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
+          <div>
+            <div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Bahasa Indonesia</div>
+            <input style={styles.input} value={form.idn} onChange={(e) => updateUser({ phrasebookForm: { ...form, idn: e.target.value } })} placeholder="Example: Bisa datang sekarang?" />
+          </div>
+          <div>
+            <div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>English meaning</div>
+            <input style={styles.input} value={form.eng} onChange={(e) => updateUser({ phrasebookForm: { ...form, eng: e.target.value } })} placeholder="Example: Can you come now?" />
+          </div>
+          <div>
+            <div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Note or context</div>
+            <textarea style={styles.textarea} value={form.note} onChange={(e) => updateUser({ phrasebookForm: { ...form, note: e.target.value } })} placeholder="Example: Use this when messaging villa staff" />
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
+            <button style={form.kind === "phrase" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "phrase" } })}>Phrase</button>
+            <button style={form.kind === "word" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "word" } })}>Word</button>
+          </div>
+          <button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={addPhrasebookItem}>Add to Training</button>
+        </div>
+
+        {currentUser.feedback ? (
+          <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}>
+            <div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div>
+            <div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>
+          </div>
+        ) : null}
+
+        <div style={{ marginTop: 18 }}>
+          <h3 style={styles.sectionTitle}>Saved Items</h3>
+          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
+            {(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => (
+              <div key={item.id} style={styles.achievementRow}>
+                <div style={{ fontWeight: 800, color: "#86efac" }}>{item.idn}</div>
+                <div style={{ color: "#e5edf7", marginTop: 4 }}>{item.eng}</div>
+                {item.note ? <div style={{ ...styles.muted, marginTop: 6, fontSize: 13 }}>{item.note}</div> : null}
+                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                  <button style={styles.button} onClick={() => speak(item.idn)}>🔊 Listen</button>
+                  <button style={styles.button} onClick={() => switchMode("phrasebook")}>Train</button>
+                  <button style={buttonStyle(false, true)} onClick={() => removePhrasebookItem(item.id)}>Delete</button>
+                </div>
+              </div>
+            )) : <div style={{ ...styles.muted, lineHeight: 1.5 }}>No saved phrases yet. Add your first word or phrase above.</div>}
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   if (showProfileManager) {
     return (
-      <div style={styles.page}><div style={styles.wrap}><div style={styles.pill}>👤 Choose a learner</div><h1 style={styles.heroTitle}>Who is using the app?</h1><p style={styles.heroText}>Each profile keeps separate progress, streaks, mistakes, phrasebook, and learning pace on this device.</p><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.profileButton} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}><div style={{ fontWeight: 800 }}>{name}</div><div style={{ color: "#94a3b8", marginTop: 4, fontSize: 13 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} pts</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} placeholder="Add a new profile name" /><button style={styles.buttonPrimary} onClick={createProfile}>Add</button></div></div><div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div></div></div>
+      <div style={styles.page}><div style={styles.wrap}><div style={styles.pill}>👤 Choose a learner</div><h1 style={styles.heroTitle}>Who is using the app?</h1><p style={styles.heroText}>Each profile keeps separate progress, streaks, mistakes, and phrasebook items on this device.</p><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.profileButton} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}><div style={{ fontWeight: 800 }}>{name}</div><div style={{ color: "#94a3b8", marginTop: 4, fontSize: 13 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} pts · {((profiles[name] || {}).phrasebook || []).length} saved</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} placeholder="Add a new profile name" /><button style={styles.buttonPrimary} onClick={createProfile}>Add</button></div></div><div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div></div></div>
     );
   }
 
   if (!currentUser.started) {
     return (
-      <div style={styles.page}><div style={styles.wrap}><div style={styles.row}><div style={styles.pill}>✨ Bali Bahasa Trainer</div><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button></div><h1 style={styles.heroTitle}>Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span></h1><p style={styles.heroText}>Now powered by your structured topic dataset: words, phrases, conversation chains, photo scan, voice input, and profiles.</p><div style={styles.card}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}><div style={styles.smallStat}><div style={{ fontSize: 20 }}>📚</div><div style={{ fontWeight: 800 }}>{flattenPhrases(baliBahasaDataset).length}</div><div style={styles.muted}>Phrases</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔤</div><div style={{ fontWeight: 800 }}>{flattenWords(baliBahasaDataset).length}</div><div style={styles.muted}>Words</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>💬</div><div style={{ fontWeight: 800 }}>{flattenConversationChains(baliBahasaDataset).length}</div><div style={styles.muted}>Chains</div></div></div><div style={{ marginBottom: 14 }}><div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{[5, 10, 20].map((goal) => <button key={goal} style={goal === currentUser.dailyGoal ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ dailyGoal: goal })}>{goal} drills</button>)}</div></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser({ started: true })}>Start Training</button></div><div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div></div></div>
+      <div style={styles.page}><div style={styles.wrap}><div style={styles.row}><div style={styles.pill}>✨ Bali Bahasa Trainer</div><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button></div><h1 style={styles.heroTitle}>Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span></h1><p style={styles.heroText}>Dataset-based training plus your own manual phrasebook. Add real phrases and words, then train them immediately.</p><div style={styles.card}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}><div style={styles.smallStat}><div style={{ fontSize: 20 }}>📚</div><div style={{ fontWeight: 800 }}>{flattenPhrases(baliBahasaDataset).length}</div><div style={styles.muted}>Phrases</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔤</div><div style={{ fontWeight: 800 }}>{flattenWords(baliBahasaDataset).length}</div><div style={styles.muted}>Words</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>⭐</div><div style={{ fontWeight: 800 }}>{(currentUser.phrasebook || []).length}</div><div style={styles.muted}>Yours</div></div></div><div style={{ marginBottom: 14 }}><div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{[5, 10, 20].map((goal) => <button key={goal} style={goal === currentUser.dailyGoal ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ dailyGoal: goal })}>{goal} drills</button>)}</div></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser({ started: true })}>Start Training</button></div><div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div></div></div>
     );
   }
 
@@ -579,11 +679,11 @@ export default function App() {
     <div style={styles.page}><div style={styles.wrap}>
       <div style={styles.card}><div style={styles.row}><div><div style={{ color: "#86efac", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 800 }}>{levelData.title}</div><div style={{ fontSize: 28, fontWeight: 800 }}>Level {levelData.level}</div></div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button><div style={{ ...styles.badge, background: "rgba(251,191,36,0.14)", color: "#fde68a", borderColor: "rgba(251,191,36,0.22)" }}>{currentUser.score} pts</div></div></div><div style={{ marginTop: 14, ...styles.progressTrack }}><div style={progressFill(progressToNext)} /></div><div style={{ ...styles.statGrid, marginTop: 14 }}><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔥</div><div style={{ fontWeight: 800 }}>{currentUser.streak}</div><div style={styles.muted}>Streak</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⭐</div><div style={{ fontWeight: 800 }}>{currentUser.bestStreak}</div><div style={styles.muted}>Best</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>❤️</div><div style={{ fontWeight: 800 }}>{currentUser.hearts}</div><div style={styles.muted}>Lives</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⚔️</div><div style={{ fontWeight: 800 }}>x{currentUser.comboMultiplier.toFixed(1)}</div><div style={styles.muted}>Combo</div></div></div><div style={{ marginTop: 14 }}><div style={{ ...styles.row, marginBottom: 6 }}><div style={styles.muted}>Daily goal</div><div style={{ color: "#86efac", fontWeight: 700 }}>{currentUser.completedToday}/{currentUser.dailyGoal}</div></div><div style={styles.progressTrack}><div style={progressFill((currentUser.completedToday / currentUser.dailyGoal) * 100)} /></div></div></div>
 
-      <div style={{ ...styles.card, padding: 12 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}><button style={buttonStyle(false, false)} onClick={() => updateUser({ feedback: { ok: true, text: "Progress saved", explanation: "Your profile has been saved on this device." } })}>💾 Save</button><button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button><button style={buttonStyle(false, true)} onClick={resetProfile}>↺ Reset</button></div><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(currentUser.mode === topic.id ? styles.buttonActive : {}) }} onClick={() => updateUser({ mode: topic.id, currentDrillId: getRandomDrillId(generatedContent.translate.filter((d) => topic.id === "all" || d.topicId === topic.id)), feedback: null, input: "", shuffledOptions: {} })}>{topic.label}</button>)}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => switchMode("typing")}>🧠 Typing</button><button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => switchMode("multiple")}>🎯 Multiple Choice</button><button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => switchMode("listening")}>🎧 Listening</button><button style={buttonStyle(currentUser.playMode === "words", false)} onClick={() => switchMode("words")}>🔤 Words</button><button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => switchMode("conversation")}>💬 Conversation</button><button style={buttonStyle(currentUser.playMode === "photo", false)} onClick={() => updateUser({ playMode: "photo", feedback: null })}>📷 Photo Scan</button><button style={buttonStyle(currentUser.showReviewOnly, true)} onClick={() => updateUser({ showReviewOnly: !currentUser.showReviewOnly, currentDrillId: getRandomDrillId(generatedContent.translate), shuffledOptions: {} })}>🔁 Review Mistakes</button></div></div>
+      <div style={{ ...styles.card, padding: 12 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}><button style={buttonStyle(false, false)} onClick={() => updateUser({ feedback: { ok: true, text: "Progress saved", explanation: "Your profile has been saved on this device." } })}>💾 Save</button><button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button><button style={buttonStyle(false, true)} onClick={resetProfile}>↺ Reset</button></div><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(currentUser.mode === topic.id ? styles.buttonActive : {}) }} onClick={() => { const nextPool = topic.id === "phrasebook" ? combinedContent.phrasebook : combinedContent.translate.filter((d) => topic.id === "all" || d.topicId === topic.id); updateUser({ mode: topic.id, currentDrillId: getRandomDrillId(nextPool.length ? nextPool : combinedContent.translate), feedback: null, input: "", shuffledOptions: {} }); }}>{topic.label}</button>)}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => switchMode("typing")}>🧠 Typing</button><button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => switchMode("multiple")}>🎯 Multiple Choice</button><button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => switchMode("listening")}>🎧 Listening</button><button style={buttonStyle(currentUser.playMode === "words", false)} onClick={() => switchMode("words")}>🔤 Words</button><button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => switchMode("conversation")}>💬 Conversation</button><button style={buttonStyle(currentUser.playMode === "phrasebook", false)} onClick={() => switchMode("phrasebook")}>⭐ My Training</button><button style={buttonStyle(currentUser.playMode === "phrasebook_edit", false)} onClick={() => updateUser({ playMode: "phrasebook_edit", feedback: null, input: "" })}>➕ Add Phrase</button><button style={buttonStyle(currentUser.showReviewOnly, true)} onClick={() => updateUser({ showReviewOnly: !currentUser.showReviewOnly, currentDrillId: getRandomDrillId(combinedContent.translate), shuffledOptions: {} })}>🔁 Review Mistakes</button></div></div>
 
-      {currentUser.playMode === "photo" ? renderPhotoMode() : currentUser.hearts > 0 ? <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current?.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>Drill {currentUser.answeredIds.length + 1}</div></div><div style={{ marginTop: 14, marginBottom: 8, color: "#94a3b8", fontSize: 13, lineHeight: 1.4 }}><strong style={{ color: "#cbd5e1" }}>Scenario:</strong> {current?.scenario}</div><div style={{ marginBottom: 10, color: "#86efac", fontSize: 13, fontWeight: 700 }}>{current?.direction}</div>{currentUser.playMode === "conversation" ? <div style={{ ...styles.achievementRow, marginBottom: 12 }}><div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div><div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current?.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current?.tip}</div></div> : <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current?.prompt}</h2>}{currentUser.playMode === "typing" ? <><div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>Type your answer in <strong>Bahasa Indonesia</strong>.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(event) => updateUser({ input: event.target.value })} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} placeholder="Type your answer in Bahasa Indonesia" /><button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current?.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(current?.prompt || current?.theySay)}>🔊 Play Audio</button></div>}<div style={{ marginTop: 12, ...styles.muted }}>{currentUser.playMode === "typing" ? `Translate into Bahasa Indonesia. Tip: ${current?.tip}` : `Tip: ${current?.tip}`}</div>{currentUser.playMode === "typing" ? <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button> : null}{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>{renderBreakdown(current?.breakdown)}</div> : null}</div> : <div style={styles.card}><div style={{ textAlign: "center", fontSize: 42 }}>💀</div><div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>Run Over</div><p style={{ textAlign: "center", color: "#cbd5e1" }}>You ran out of lives. Reset and go again.</p><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser(blankUserState())}>Start New Run</button></div>}
+      {currentUser.playMode === "phrasebook_edit" ? renderPhrasebookManager() : currentUser.hearts > 0 ? <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current?.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>Drill {currentUser.answeredIds.length + 1}</div></div><div style={{ marginTop: 14, marginBottom: 8, color: "#94a3b8", fontSize: 13, lineHeight: 1.4 }}><strong style={{ color: "#cbd5e1" }}>Scenario:</strong> {current?.scenario}</div><div style={{ marginBottom: 10, color: "#86efac", fontSize: 13, fontWeight: 700 }}>{current?.direction}</div>{currentUser.playMode === "conversation" ? <div style={{ ...styles.achievementRow, marginBottom: 12 }}><div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div><div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current?.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current?.tip}</div></div> : <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current?.prompt}</h2>}{currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" ? <><div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>Type your answer in <strong>Bahasa Indonesia</strong>.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(event) => updateUser({ input: event.target.value })} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} placeholder="Type your answer in Bahasa Indonesia" /><button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current?.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(current?.prompt || current?.theySay)}>🔊 Play Audio</button></div>}<div style={{ marginTop: 12, ...styles.muted }}>{currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" ? `Translate into Bahasa Indonesia. Tip: ${current?.tip}` : `Tip: ${current?.tip}`}</div>{currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" ? <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button> : null}{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>{renderBreakdown(current?.breakdown)}</div> : null}</div> : <div style={styles.card}><div style={{ textAlign: "center", fontSize: 42 }}>💀</div><div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>Run Over</div><p style={{ textAlign: "center", color: "#cbd5e1" }}>You ran out of lives. Reset and go again.</p><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser(blankUserState())}>Start New Run</button></div>}
 
-      <div style={styles.card}><h3 style={styles.sectionTitle}>🔐 Learning Focus</h3><div style={{ display: "grid", gap: 10, marginTop: 12 }}><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Dataset active</div><div style={styles.muted}>{flattenPhrases(baliBahasaDataset).length} phrases, {flattenWords(baliBahasaDataset).length} words, {flattenConversationChains(baliBahasaDataset).length} conversation chains loaded from src/dataset.js.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>App version</div><div style={styles.muted}>{APP_VERSION_LABEL}</div><div style={{ ...styles.muted, fontSize: 12, marginTop: 4 }}>Build {APP_VERSION}</div></div></div></div>
+      <div style={styles.card}><h3 style={styles.sectionTitle}>🔐 Learning Focus</h3><div style={{ display: "grid", gap: 10, marginTop: 12 }}><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Manual phrasebook active</div><div style={styles.muted}>{(currentUser.phrasebook || []).length} custom items saved. They are included in Typing, Listening, and My Training.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Dataset active</div><div style={styles.muted}>{flattenPhrases(baliBahasaDataset).length} phrases, {flattenWords(baliBahasaDataset).length} words, {flattenConversationChains(baliBahasaDataset).length} conversation chains loaded from src/dataset.js.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>App version</div><div style={styles.muted}>{APP_VERSION_LABEL}</div><div style={{ ...styles.muted, fontSize: 12, marginTop: 4 }}>Build {APP_VERSION}</div></div></div></div>
     </div></div>
   );
 }
