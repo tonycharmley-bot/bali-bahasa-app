@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import baliBahasaDataset from "./dataset";
 
-const APP_VERSION = "1.4.0";
-const APP_VERSION_LABEL = "Version 1.4 — Manual Phrasebook Training";
-const STORAGE_KEY = "bali-bahasa-profiles-v8";
+const APP_VERSION = "1.5.0";
+const APP_VERSION_LABEL = "Version 1.5 — Gamified Manual Phrasebook";
+const STORAGE_KEY = "bali-bahasa-profiles-v9";
 
 function normalize(text) {
   return String(text || "")
@@ -23,9 +23,10 @@ function shuffleArray(items) {
 }
 
 function getLevelData(score) {
-  if (score >= 1000) return { level: 5, title: "Bali Conversation Flow" };
-  if (score >= 650) return { level: 4, title: "Local Chat Mode" };
-  if (score >= 350) return { level: 3, title: "Conversation Builder" };
+  if (score >= 1200) return { level: 6, title: "Confident Local Chat" };
+  if (score >= 850) return { level: 5, title: "Bali Conversation Flow" };
+  if (score >= 550) return { level: 4, title: "Local Chat Mode" };
+  if (score >= 300) return { level: 3, title: "Conversation Builder" };
   if (score >= 120) return { level: 2, title: "Pattern Starter" };
   return { level: 1, title: "First Steps" };
 }
@@ -35,12 +36,7 @@ function flattenPhrases(dataset) {
   const all = [];
   topics.forEach((topic) => {
     (topic.phrases || []).forEach((phrase) => {
-      all.push({
-        ...phrase,
-        topicId: topic.id,
-        category: topic.label,
-        topicPriority: topic.priority || 99
-      });
+      all.push({ ...phrase, topicId: topic.id, category: topic.label, topicPriority: topic.priority || 99 });
     });
   });
   return all;
@@ -51,12 +47,7 @@ function flattenWords(dataset) {
   const all = [];
   topics.forEach((topic) => {
     (topic.coreWords || []).forEach((word) => {
-      all.push({
-        ...word,
-        topicId: topic.id,
-        category: topic.label,
-        topicPriority: topic.priority || 99
-      });
+      all.push({ ...word, topicId: topic.id, category: topic.label, topicPriority: topic.priority || 99 });
     });
   });
   return all;
@@ -67,27 +58,16 @@ function flattenConversationChains(dataset) {
   const chains = [];
   topics.forEach((topic) => {
     (topic.conversationChains || []).forEach((chain) => {
-      chains.push({
-        ...chain,
-        topicId: topic.id,
-        category: topic.label,
-        topicPriority: topic.priority || 99
-      });
+      chains.push({ ...chain, topicId: topic.id, category: topic.label, topicPriority: topic.priority || 99 });
     });
   });
   return chains;
 }
 
 function createDistractors(correctPhrase, allPhrases, count = 3) {
-  const sameTopic = allPhrases.filter(
-    (item) => item.id !== correctPhrase.id && item.topicId === correctPhrase.topicId
-  );
-  const otherTopics = allPhrases.filter(
-    (item) => item.id !== correctPhrase.id && item.topicId !== correctPhrase.topicId
-  );
-  return shuffleArray([...sameTopic, ...otherTopics])
-    .slice(0, count)
-    .map((item) => item.idn);
+  const sameTopic = allPhrases.filter((item) => item.id !== correctPhrase.id && item.topicId === correctPhrase.topicId);
+  const otherTopics = allPhrases.filter((item) => item.id !== correctPhrase.id && item.topicId !== correctPhrase.topicId);
+  return shuffleArray([...sameTopic, ...otherTopics]).slice(0, count).map((item) => item.idn);
 }
 
 function createTranslationDrills(dataset) {
@@ -117,9 +97,7 @@ function createTranslationDrills(dataset) {
 function createListeningDrills(dataset) {
   const phrases = flattenPhrases(dataset);
   return phrases.map((phrase, index) => {
-    const distractors = shuffleArray(phrases.filter((item) => item.id !== phrase.id))
-      .slice(0, 3)
-      .map((item) => item.eng);
+    const distractors = shuffleArray(phrases.filter((item) => item.id !== phrase.id)).slice(0, 3).map((item) => item.eng);
     return {
       id: `l-${phrase.id || index}`,
       sourceId: phrase.id,
@@ -143,9 +121,7 @@ function createListeningDrills(dataset) {
 function createWordDrills(dataset) {
   const words = flattenWords(dataset);
   return words.map((word, index) => {
-    const distractors = shuffleArray(words.filter((item) => item.id !== word.id))
-      .slice(0, 3)
-      .map((item) => item.eng);
+    const distractors = shuffleArray(words.filter((item) => item.id !== word.id)).slice(0, 3).map((item) => item.eng);
     return {
       id: `w-${word.id || index}`,
       sourceId: word.id,
@@ -169,7 +145,6 @@ function createWordDrills(dataset) {
 function createConversationDrills(dataset) {
   const chains = flattenConversationChains(dataset);
   const userTurns = [];
-
   chains.forEach((chain) => {
     (chain.turns || []).forEach((turn, index) => {
       if (turn.speaker !== "user") return;
@@ -179,7 +154,6 @@ function createConversationDrills(dataset) {
           .filter((item) => item.speaker === "user" && item.idn !== turn.idn)
           .map((item) => item.idn)
       );
-
       userTurns.push({
         id: `c-${chain.id}-${index}`,
         sourceId: chain.id,
@@ -200,50 +174,51 @@ function createConversationDrills(dataset) {
       });
     });
   });
-
   return userTurns;
 }
 
 function createPhrasebookDrills(phrasebook) {
-  const items = phrasebook || [];
-
-  const phraseItems = items.filter((item) => item.idn && item.eng);
-  const translate = phraseItems.map((item) => ({
-    id: `pb-t-${item.id}`,
-    sourceId: item.id,
-    type: "phrasebook",
-    category: "My Phrasebook",
-    topicId: "phrasebook",
-    scenario: "Personal phrasebook",
-    direction: "Translate into Bahasa Indonesia",
-    prompt: item.eng,
-    answers: [item.idn],
-    options: shuffleArray([item.idn, ...shuffleArray(phraseItems.filter((other) => other.id !== item.id)).slice(0, 3).map((other) => other.idn)]),
-    tip: item.note || "Personal phrase saved by you.",
-    explanation: `${item.idn} = ${item.eng}`,
-    breakdown: [[item.idn, item.eng]],
-    level: 1,
-    tags: ["phrasebook", item.kind || "phrase"]
-  }));
-
-  const listening = phraseItems.map((item) => ({
-    id: `pb-l-${item.id}`,
-    sourceId: item.id,
-    type: "phrasebook_listening",
-    category: "My Phrasebook",
-    topicId: "phrasebook",
-    scenario: "Personal phrasebook listening",
-    direction: "Choose the correct meaning",
-    prompt: item.idn,
-    answers: [normalize(item.eng)],
-    options: shuffleArray([item.eng, ...shuffleArray(phraseItems.filter((other) => other.id !== item.id)).slice(0, 3).map((other) => other.eng)]),
-    tip: item.note || "Listen and choose the meaning.",
-    explanation: `${item.idn} = ${item.eng}`,
-    breakdown: [[item.idn, item.eng]],
-    level: 1,
-    tags: ["phrasebook", item.kind || "phrase"]
-  }));
-
+  const items = (phrasebook || []).filter((item) => item.idn && item.eng);
+  const translate = items.map((item) => {
+    const others = shuffleArray(items.filter((other) => other.id !== item.id)).slice(0, 3);
+    return {
+      id: `pb-t-${item.id}`,
+      sourceId: item.id,
+      type: "phrasebook",
+      category: "My Phrasebook",
+      topicId: "phrasebook",
+      scenario: "Personal phrasebook",
+      direction: "Translate into Bahasa Indonesia",
+      prompt: item.eng,
+      answers: [item.idn],
+      options: shuffleArray([item.idn, ...others.map((other) => other.idn)]),
+      tip: item.note || "Personal phrase saved by you.",
+      explanation: `${item.idn} = ${item.eng}`,
+      breakdown: [[item.idn, item.eng]],
+      level: 1,
+      tags: ["phrasebook", item.kind || "phrase"]
+    };
+  });
+  const listening = items.map((item) => {
+    const others = shuffleArray(items.filter((other) => other.id !== item.id)).slice(0, 3);
+    return {
+      id: `pb-l-${item.id}`,
+      sourceId: item.id,
+      type: "phrasebook_listening",
+      category: "My Phrasebook",
+      topicId: "phrasebook",
+      scenario: "Personal phrasebook listening",
+      direction: "Choose the correct meaning",
+      prompt: item.idn,
+      answers: [normalize(item.eng)],
+      options: shuffleArray([item.eng, ...others.map((other) => other.eng)]),
+      tip: item.note || "Listen and choose the meaning.",
+      explanation: `${item.idn} = ${item.eng}`,
+      breakdown: [[item.idn, item.eng]],
+      level: 1,
+      tags: ["phrasebook", item.kind || "phrase"]
+    };
+  });
   return { translate, listening, all: [...translate, ...listening] };
 }
 
@@ -262,6 +237,16 @@ const topicList = [
   ...(baliBahasaDataset?.topics || []).map((topic) => ({ id: topic.id, label: topic.label }))
 ];
 
+const achievements = [
+  { key: "firstWin", label: "First Win", desc: "Get your first correct answer" },
+  { key: "streak5", label: "Hot Streak", desc: "Reach a streak of 5" },
+  { key: "score100", label: "Century", desc: "Score 100 points" },
+  { key: "level3", label: "Conversational Spark", desc: "Reach level 3" },
+  { key: "dailyGoal", label: "Daily Discipline", desc: "Finish your daily goal" },
+  { key: "phraseCollector", label: "Phrase Collector", desc: "Save 5 custom phrasebook items" },
+  { key: "coin100", label: "Coin Hunter", desc: "Earn 100 coins" }
+];
+
 function getRandomDrillId(items) {
   if (!items.length) return "";
   return items[Math.floor(Math.random() * items.length)].id;
@@ -271,14 +256,12 @@ function chooseAdaptiveDrill(items, stats, excludeId) {
   const candidates = items.filter((item) => item.id !== excludeId);
   const source = candidates.length ? candidates : items;
   if (!source.length) return null;
-
   const weighted = source.map((item) => {
     const s = stats[item.id] || { seen: 0, correct: 0, wrong: 0, streak: 0 };
     const weaknessBoost = s.wrong * 3 + Math.max(0, s.seen - s.correct) * 1.5;
     const masteryPenalty = Math.min(s.streak * 0.7, 2.5);
     return { item, weight: Math.max(1, 1 + weaknessBoost - masteryPenalty) };
   });
-
   const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
   let roll = Math.random() * total;
   for (const entry of weighted) {
@@ -295,6 +278,7 @@ function blankUserState() {
     shuffledOptions: {},
     input: "",
     score: 0,
+    coins: 0,
     streak: 0,
     bestStreak: 0,
     xp: 0,
@@ -311,7 +295,11 @@ function blankUserState() {
     comboMultiplier: 1,
     drillStats: {},
     phrasebook: [],
-    phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" }
+    phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" },
+    muted: false,
+    lastCorrectAnswer: "",
+    lastLevel: 1,
+    soundEvent: ""
   };
 }
 
@@ -339,7 +327,8 @@ const styles = {
   feedbackGood: { borderRadius: 18, padding: 14, border: "1px solid rgba(52,211,153,0.24)", background: "rgba(16,185,129,0.12)" },
   feedbackBad: { borderRadius: 18, padding: 14, border: "1px solid rgba(251,113,133,0.24)", background: "rgba(244,63,94,0.12)" },
   achievementRow: { borderRadius: 18, padding: 12, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(15,23,42,0.68)" },
-  profileButton: { minHeight: 54, borderRadius: 18, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(15,23,42,0.82)", color: "white", padding: "10px 14px", cursor: "pointer", fontWeight: 700, textAlign: "left" }
+  profileButton: { minHeight: 54, borderRadius: 18, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(15,23,42,0.82)", color: "white", padding: "10px 14px", cursor: "pointer", fontWeight: 700, textAlign: "left" },
+  footer: { textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.45)", padding: "8px 0 18px" }
 };
 
 export default function App() {
@@ -449,6 +438,17 @@ export default function App() {
   const levelData = getLevelData(currentUser.score);
   const progressToNext = Math.min(100, currentUser.xp % 100);
 
+  const playSound = (type) => {
+    if (currentUser.muted) return;
+    try {
+      const audio = new Audio(`/sounds/${type}.mp3`);
+      audio.volume = 0.45;
+      audio.play().catch(() => {});
+    } catch (error) {
+      console.log("Sound unavailable", error);
+    }
+  };
+
   useEffect(() => {
     const nextUnlocked = [];
     if (currentUser.score > 0) nextUnlocked.push("firstWin");
@@ -456,11 +456,16 @@ export default function App() {
     if (currentUser.score >= 100) nextUnlocked.push("score100");
     if (levelData.level >= 3) nextUnlocked.push("level3");
     if (currentUser.completedToday >= currentUser.dailyGoal) nextUnlocked.push("dailyGoal");
-    if (currentUser.answeredIds.length >= 5 && currentUser.hearts > 0) nextUnlocked.push("survivor");
+    if ((currentUser.phrasebook || []).length >= 5) nextUnlocked.push("phraseCollector");
+    if (currentUser.coins >= 100) nextUnlocked.push("coin100");
     const nextCombo = Math.min(3, 1 + Math.floor(currentUser.streak / 3) * 0.5);
     const sameUnlocked = JSON.stringify(currentUser.unlocked) === JSON.stringify(nextUnlocked);
-    if (!sameUnlocked || currentUser.comboMultiplier !== nextCombo) updateUser({ unlocked: nextUnlocked, comboMultiplier: nextCombo });
-  }, [currentUser.score, currentUser.bestStreak, currentUser.completedToday, currentUser.dailyGoal, currentUser.answeredIds.length, currentUser.hearts, currentUser.streak, currentUser.comboMultiplier, currentUser.unlocked, levelData.level]);
+    const newLevel = levelData.level;
+    if (newLevel > (currentUser.lastLevel || 1)) playSound("level-up");
+    if (!sameUnlocked || currentUser.comboMultiplier !== nextCombo || currentUser.lastLevel !== newLevel) {
+      updateUser({ unlocked: nextUnlocked, comboMultiplier: nextCombo, lastLevel: newLevel });
+    }
+  }, [currentUser.score, currentUser.bestStreak, currentUser.completedToday, currentUser.dailyGoal, currentUser.phrasebook, currentUser.coins, currentUser.streak, currentUser.comboMultiplier, currentUser.unlocked, currentUser.lastLevel, levelData.level]);
 
   const buttonStyle = (active, warn) => ({ ...styles.button, ...(active ? styles.buttonActive : {}), ...(warn ? styles.buttonWarn : {}) });
   const progressFill = (value) => ({ width: `${Math.max(0, Math.min(100, value))}%`, height: "100%", background: "linear-gradient(90deg, #34d399 0%, #10b981 100%)" });
@@ -475,7 +480,11 @@ export default function App() {
       phrasebook: combinedContent.phrasebook
     };
     const nextPool = pools[playMode] || combinedContent.translate;
-    updateUser({ playMode, currentDrillId: getRandomDrillId(nextPool), shuffledOptions: {}, feedback: null, input: "" });
+    if (playMode === "phrasebook" && !nextPool.length) {
+      updateUser({ playMode: "phrasebook_edit", feedback: { ok: false, text: "Add phrases first", explanation: "My Training uses only your manually added words and phrases." }, input: "" });
+      return;
+    }
+    updateUser({ playMode, currentDrillId: getRandomDrillId(nextPool), shuffledOptions: {}, feedback: null, input: "", lastCorrectAnswer: "" });
   };
 
   const updateDrillStats = (drillId, wasCorrect) => {
@@ -486,11 +495,11 @@ export default function App() {
 
   const moveToNextDrill = () => {
     const next = chooseAdaptiveDrill(pool, currentUser.drillStats || {}, current?.id);
-    updateUser({ currentDrillId: next ? next.id : getRandomDrillId(pool), shuffledOptions: {} });
+    updateUser({ currentDrillId: next ? next.id : getRandomDrillId(pool), shuffledOptions: {}, lastCorrectAnswer: "" });
   };
 
   const speak = (text) => {
-    if (!("speechSynthesis" in window)) return;
+    if (!("speechSynthesis" in window) || !text) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.lang = "id-ID";
     utterance.rate = 0.92;
@@ -519,18 +528,42 @@ export default function App() {
     if (!current || currentUser.hearts <= 0) return;
     const value = normalize(submitted);
     const isCorrect = current.answers.some((answer) => normalize(answer) === value);
+    const isPhrasebook = current.type?.includes("phrasebook") || currentUser.playMode === "phrasebook";
     if (isCorrect) {
       updateDrillStats(current.id, true);
+      playSound("correct");
       const newStreak = currentUser.streak + 1;
       const gained = Math.round((10 + Math.min(newStreak * 2, 20)) * currentUser.comboMultiplier);
-      updateUser({ score: currentUser.score + gained, xp: currentUser.xp + 25, streak: newStreak, bestStreak: Math.max(currentUser.bestStreak, newStreak), completedToday: currentUser.completedToday + 1, answeredIds: [...currentUser.answeredIds, current.id], wrongIds: currentUser.wrongIds.filter((id) => id !== current.id), feedback: { ok: true, text: `Correct. +${gained} points`, explanation: current.explanation }, input: "" });
+      const coinsGained = Math.max(1, Math.round(gained / 5));
+      const dailyGoalJustCompleted = currentUser.completedToday + 1 === currentUser.dailyGoal;
+      if (dailyGoalJustCompleted) playSound("daily-goal");
+      updateUser({
+        score: currentUser.score + gained,
+        coins: currentUser.coins + coinsGained,
+        xp: currentUser.xp + 25,
+        streak: newStreak,
+        bestStreak: Math.max(currentUser.bestStreak, newStreak),
+        completedToday: currentUser.completedToday + 1,
+        answeredIds: [...currentUser.answeredIds, current.id],
+        wrongIds: currentUser.wrongIds.filter((id) => id !== current.id),
+        feedback: { ok: true, text: `Correct. +${gained} points · +${coinsGained} coins`, explanation: current.explanation },
+        input: "",
+        lastCorrectAnswer: current.answers[0]
+      });
       setTimeout(() => {
         updateUser({ feedback: null });
         moveToNextDrill();
-      }, 900);
+      }, 1100);
     } else {
       updateDrillStats(current.id, false);
-      updateUser({ hearts: Math.max(currentUser.hearts - 1, 0), streak: 0, wrongIds: currentUser.wrongIds.includes(current.id) ? currentUser.wrongIds : [...currentUser.wrongIds, current.id], feedback: { ok: false, text: "Not quite", explanation: `Correct answer: ${current.answers[0]}. ${current.explanation}` } });
+      playSound("wrong");
+      updateUser({
+        hearts: isPhrasebook ? currentUser.hearts : Math.max(currentUser.hearts - 1, 0),
+        streak: 0,
+        wrongIds: currentUser.wrongIds.includes(current.id) ? currentUser.wrongIds : [...currentUser.wrongIds, current.id],
+        feedback: { ok: false, text: "Not quite", explanation: `Correct answer: ${current.answers[0]}. ${current.explanation}` },
+        lastCorrectAnswer: current.answers[0]
+      });
     }
   };
 
@@ -550,10 +583,11 @@ export default function App() {
       return;
     }
     const item = { id: Date.now(), idn, eng, note, kind, createdAt: new Date().toISOString() };
+    playSound("correct");
     updateUser({
       phrasebook: [item, ...(currentUser.phrasebook || [])],
       phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" },
-      feedback: { ok: true, text: "Added to training", explanation: "This item is now included in Phrasebook, Typing, and Listening training." }
+      feedback: { ok: true, text: "Added to training", explanation: "This item is now included in My Training, Typing, and Listening training." }
     });
   };
 
@@ -604,6 +638,8 @@ export default function App() {
     );
   };
 
+  const renderFooter = () => <div style={styles.footer}>Created by Tony Charmley · {APP_VERSION_LABEL}</div>;
+
   const renderPhrasebookManager = () => {
     const form = currentUser.phrasebookForm || { idn: "", eng: "", note: "", kind: "phrase" };
     return (
@@ -616,74 +652,42 @@ export default function App() {
         <p style={{ ...styles.muted, lineHeight: 1.5 }}>Add phrases from real life, WhatsApp messages, staff conversations, signs, menus, or anything you want to practise. Saved items are automatically included in training.</p>
 
         <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-          <div>
-            <div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Bahasa Indonesia</div>
-            <input style={styles.input} value={form.idn} onChange={(e) => updateUser({ phrasebookForm: { ...form, idn: e.target.value } })} placeholder="Example: Bisa datang sekarang?" />
-          </div>
-          <div>
-            <div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>English meaning</div>
-            <input style={styles.input} value={form.eng} onChange={(e) => updateUser({ phrasebookForm: { ...form, eng: e.target.value } })} placeholder="Example: Can you come now?" />
-          </div>
-          <div>
-            <div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Note or context</div>
-            <textarea style={styles.textarea} value={form.note} onChange={(e) => updateUser({ phrasebookForm: { ...form, note: e.target.value } })} placeholder="Example: Use this when messaging villa staff" />
-          </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}>
-            <button style={form.kind === "phrase" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "phrase" } })}>Phrase</button>
-            <button style={form.kind === "word" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "word" } })}>Word</button>
-          </div>
+          <div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Bahasa Indonesia</div><input style={styles.input} value={form.idn} onChange={(e) => updateUser({ phrasebookForm: { ...form, idn: e.target.value } })} placeholder="Example: Bisa datang sekarang?" /></div>
+          <div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>English meaning</div><input style={styles.input} value={form.eng} onChange={(e) => updateUser({ phrasebookForm: { ...form, eng: e.target.value } })} placeholder="Example: Can you come now?" /></div>
+          <div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Note or context</div><textarea style={styles.textarea} value={form.note} onChange={(e) => updateUser({ phrasebookForm: { ...form, note: e.target.value } })} placeholder="Example: Use this when messaging villa staff" /></div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={form.kind === "phrase" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "phrase" } })}>Phrase</button><button style={form.kind === "word" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "word" } })}>Word</button></div>
           <button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={addPhrasebookItem}>Add to Training</button>
         </div>
 
-        {currentUser.feedback ? (
-          <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}>
-            <div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div>
-            <div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>
-          </div>
-        ) : null}
+        {currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div></div> : null}
 
-        <div style={{ marginTop: 18 }}>
-          <h3 style={styles.sectionTitle}>Saved Items</h3>
-          <div style={{ display: "grid", gap: 8, marginTop: 12 }}>
-            {(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => (
-              <div key={item.id} style={styles.achievementRow}>
-                <div style={{ fontWeight: 800, color: "#86efac" }}>{item.idn}</div>
-                <div style={{ color: "#e5edf7", marginTop: 4 }}>{item.eng}</div>
-                {item.note ? <div style={{ ...styles.muted, marginTop: 6, fontSize: 13 }}>{item.note}</div> : null}
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button style={styles.button} onClick={() => speak(item.idn)}>🔊 Listen</button>
-                  <button style={styles.button} onClick={() => switchMode("phrasebook")}>Train</button>
-                  <button style={buttonStyle(false, true)} onClick={() => removePhrasebookItem(item.id)}>Delete</button>
-                </div>
-              </div>
-            )) : <div style={{ ...styles.muted, lineHeight: 1.5 }}>No saved phrases yet. Add your first word or phrase above.</div>}
-          </div>
-        </div>
+        <div style={{ marginTop: 18 }}><h3 style={styles.sectionTitle}>Saved Items</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => <div key={item.id} style={styles.achievementRow}><div style={{ fontWeight: 800, color: "#86efac" }}>{item.idn}</div><div style={{ color: "#e5edf7", marginTop: 4 }}>{item.eng}</div>{item.note ? <div style={{ ...styles.muted, marginTop: 6, fontSize: 13 }}>{item.note}</div> : null}<div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}><button style={styles.button} onClick={() => speak(item.idn)}>🔊 Listen</button><button style={styles.button} onClick={() => switchMode("phrasebook")}>Train</button><button style={buttonStyle(false, true)} onClick={() => removePhrasebookItem(item.id)}>Delete</button></div></div>) : <div style={{ ...styles.muted, lineHeight: 1.5 }}>No saved phrases yet. Add your first word or phrase above.</div>}</div></div>
       </div>
     );
   };
 
   if (showProfileManager) {
-    return (
-      <div style={styles.page}><div style={styles.wrap}><div style={styles.pill}>👤 Choose a learner</div><h1 style={styles.heroTitle}>Who is using the app?</h1><p style={styles.heroText}>Each profile keeps separate progress, streaks, mistakes, and phrasebook items on this device.</p><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.profileButton} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}><div style={{ fontWeight: 800 }}>{name}</div><div style={{ color: "#94a3b8", marginTop: 4, fontSize: 13 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} pts · {((profiles[name] || {}).phrasebook || []).length} saved</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} placeholder="Add a new profile name" /><button style={styles.buttonPrimary} onClick={createProfile}>Add</button></div></div><div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div></div></div>
-    );
+    return <div style={styles.page}><div style={styles.wrap}><div style={styles.pill}>👤 Choose a learner</div><h1 style={styles.heroTitle}>Who is using the app?</h1><p style={styles.heroText}>Each profile keeps separate progress, streaks, coins, mistakes, and phrasebook items on this device.</p><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.profileButton} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}><div style={{ fontWeight: 800 }}>{name}</div><div style={{ color: "#94a3b8", marginTop: 4, fontSize: 13 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} pts · {(profiles[name] || {}).coins || 0} coins · {((profiles[name] || {}).phrasebook || []).length} saved</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} placeholder="Add a new profile name" /><button style={styles.buttonPrimary} onClick={createProfile}>Add</button></div></div>{renderFooter()}</div></div>;
   }
 
   if (!currentUser.started) {
-    return (
-      <div style={styles.page}><div style={styles.wrap}><div style={styles.row}><div style={styles.pill}>✨ Bali Bahasa Trainer</div><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button></div><h1 style={styles.heroTitle}>Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span></h1><p style={styles.heroText}>Dataset-based training plus your own manual phrasebook. Add real phrases and words, then train them immediately.</p><div style={styles.card}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}><div style={styles.smallStat}><div style={{ fontSize: 20 }}>📚</div><div style={{ fontWeight: 800 }}>{flattenPhrases(baliBahasaDataset).length}</div><div style={styles.muted}>Phrases</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔤</div><div style={{ fontWeight: 800 }}>{flattenWords(baliBahasaDataset).length}</div><div style={styles.muted}>Words</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>⭐</div><div style={{ fontWeight: 800 }}>{(currentUser.phrasebook || []).length}</div><div style={styles.muted}>Yours</div></div></div><div style={{ marginBottom: 14 }}><div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{[5, 10, 20].map((goal) => <button key={goal} style={goal === currentUser.dailyGoal ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ dailyGoal: goal })}>{goal} drills</button>)}</div></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser({ started: true })}>Start Training</button></div><div style={{ ...styles.muted, textAlign: "center", fontSize: 12 }}>{APP_VERSION_LABEL}</div></div></div>
-    );
+    return <div style={styles.page}><div style={styles.wrap}><div style={styles.row}><div style={styles.pill}>✨ Bali Bahasa Trainer</div><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button></div><h1 style={styles.heroTitle}>Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span></h1><p style={styles.heroText}>Dataset-based training plus your own manual phrasebook. Earn coins, keep streaks, add real phrases, and train them immediately.</p><div style={styles.card}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}><div style={styles.smallStat}><div style={{ fontSize: 20 }}>📚</div><div style={{ fontWeight: 800 }}>{flattenPhrases(baliBahasaDataset).length}</div><div style={styles.muted}>Phrases</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>🪙</div><div style={{ fontWeight: 800 }}>{currentUser.coins}</div><div style={styles.muted}>Coins</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>⭐</div><div style={{ fontWeight: 800 }}>{(currentUser.phrasebook || []).length}</div><div style={styles.muted}>Yours</div></div></div><div style={{ marginBottom: 14 }}><div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{[5, 10, 20].map((goal) => <button key={goal} style={goal === currentUser.dailyGoal ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ dailyGoal: goal })}>{goal} drills</button>)}</div></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser({ started: true })}>Start Training</button></div>{renderFooter()}</div></div>;
   }
 
-  return (
-    <div style={styles.page}><div style={styles.wrap}>
-      <div style={styles.card}><div style={styles.row}><div><div style={{ color: "#86efac", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 800 }}>{levelData.title}</div><div style={{ fontSize: 28, fontWeight: 800 }}>Level {levelData.level}</div></div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button><div style={{ ...styles.badge, background: "rgba(251,191,36,0.14)", color: "#fde68a", borderColor: "rgba(251,191,36,0.22)" }}>{currentUser.score} pts</div></div></div><div style={{ marginTop: 14, ...styles.progressTrack }}><div style={progressFill(progressToNext)} /></div><div style={{ ...styles.statGrid, marginTop: 14 }}><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔥</div><div style={{ fontWeight: 800 }}>{currentUser.streak}</div><div style={styles.muted}>Streak</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⭐</div><div style={{ fontWeight: 800 }}>{currentUser.bestStreak}</div><div style={styles.muted}>Best</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>❤️</div><div style={{ fontWeight: 800 }}>{currentUser.hearts}</div><div style={styles.muted}>Lives</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⚔️</div><div style={{ fontWeight: 800 }}>x{currentUser.comboMultiplier.toFixed(1)}</div><div style={styles.muted}>Combo</div></div></div><div style={{ marginTop: 14 }}><div style={{ ...styles.row, marginBottom: 6 }}><div style={styles.muted}>Daily goal</div><div style={{ color: "#86efac", fontWeight: 700 }}>{currentUser.completedToday}/{currentUser.dailyGoal}</div></div><div style={styles.progressTrack}><div style={progressFill((currentUser.completedToday / currentUser.dailyGoal) * 100)} /></div></div></div>
+  const isTypingLike = currentUser.playMode === "typing" || currentUser.playMode === "phrasebook";
+  const playPromptText = currentUser.playMode === "listening" || currentUser.playMode === "words" ? current?.prompt : currentUser.playMode === "conversation" ? current?.theySay : current?.answers?.[0];
 
-      <div style={{ ...styles.card, padding: 12 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}><button style={buttonStyle(false, false)} onClick={() => updateUser({ feedback: { ok: true, text: "Progress saved", explanation: "Your profile has been saved on this device." } })}>💾 Save</button><button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button><button style={buttonStyle(false, true)} onClick={resetProfile}>↺ Reset</button></div><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(currentUser.mode === topic.id ? styles.buttonActive : {}) }} onClick={() => { const nextPool = topic.id === "phrasebook" ? combinedContent.phrasebook : combinedContent.translate.filter((d) => topic.id === "all" || d.topicId === topic.id); updateUser({ mode: topic.id, currentDrillId: getRandomDrillId(nextPool.length ? nextPool : combinedContent.translate), feedback: null, input: "", shuffledOptions: {} }); }}>{topic.label}</button>)}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => switchMode("typing")}>🧠 Typing</button><button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => switchMode("multiple")}>🎯 Multiple Choice</button><button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => switchMode("listening")}>🎧 Listening</button><button style={buttonStyle(currentUser.playMode === "words", false)} onClick={() => switchMode("words")}>🔤 Words</button><button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => switchMode("conversation")}>💬 Conversation</button><button style={buttonStyle(currentUser.playMode === "phrasebook", false)} onClick={() => switchMode("phrasebook")}>⭐ My Training</button><button style={buttonStyle(currentUser.playMode === "phrasebook_edit", false)} onClick={() => updateUser({ playMode: "phrasebook_edit", feedback: null, input: "" })}>➕ Add Phrase</button><button style={buttonStyle(currentUser.showReviewOnly, true)} onClick={() => updateUser({ showReviewOnly: !currentUser.showReviewOnly, currentDrillId: getRandomDrillId(combinedContent.translate), shuffledOptions: {} })}>🔁 Review Mistakes</button></div></div>
+  return <div style={styles.page}><div style={styles.wrap}>
+    <div style={styles.card}><div style={styles.row}><div><div style={{ color: "#86efac", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 800 }}>{levelData.title}</div><div style={{ fontSize: 28, fontWeight: 800 }}>Level {levelData.level}</div></div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button><div style={{ ...styles.badge, background: "rgba(251,191,36,0.14)", color: "#fde68a", borderColor: "rgba(251,191,36,0.22)" }}>🪙 {currentUser.coins}</div></div></div><div style={{ marginTop: 14, ...styles.progressTrack }}><div style={progressFill(progressToNext)} /></div><div style={{ ...styles.statGrid, marginTop: 14 }}><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔥</div><div style={{ fontWeight: 800 }}>{currentUser.streak}</div><div style={styles.muted}>Streak</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⭐</div><div style={{ fontWeight: 800 }}>{currentUser.bestStreak}</div><div style={styles.muted}>Best</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>❤️</div><div style={{ fontWeight: 800 }}>{currentUser.hearts}</div><div style={styles.muted}>Lives</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⚔️</div><div style={{ fontWeight: 800 }}>x{currentUser.comboMultiplier.toFixed(1)}</div><div style={styles.muted}>Combo</div></div></div><div style={{ marginTop: 14 }}><div style={{ ...styles.row, marginBottom: 6 }}><div style={styles.muted}>Daily goal</div><div style={{ color: "#86efac", fontWeight: 700 }}>{currentUser.completedToday}/{currentUser.dailyGoal}</div></div><div style={styles.progressTrack}><div style={progressFill((currentUser.completedToday / currentUser.dailyGoal) * 100)} /></div></div></div>
 
-      {currentUser.playMode === "phrasebook_edit" ? renderPhrasebookManager() : currentUser.hearts > 0 ? <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current?.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>Drill {currentUser.answeredIds.length + 1}</div></div><div style={{ marginTop: 14, marginBottom: 8, color: "#94a3b8", fontSize: 13, lineHeight: 1.4 }}><strong style={{ color: "#cbd5e1" }}>Scenario:</strong> {current?.scenario}</div><div style={{ marginBottom: 10, color: "#86efac", fontSize: 13, fontWeight: 700 }}>{current?.direction}</div>{currentUser.playMode === "conversation" ? <div style={{ ...styles.achievementRow, marginBottom: 12 }}><div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div><div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current?.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current?.tip}</div></div> : <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current?.prompt}</h2>}{currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" ? <><div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>Type your answer in <strong>Bahasa Indonesia</strong>.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(event) => updateUser({ input: event.target.value })} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} placeholder="Type your answer in Bahasa Indonesia" /><button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current?.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(current?.prompt || current?.theySay)}>🔊 Play Audio</button></div>}<div style={{ marginTop: 12, ...styles.muted }}>{currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" ? `Translate into Bahasa Indonesia. Tip: ${current?.tip}` : `Tip: ${current?.tip}`}</div>{currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" ? <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button> : null}{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>{renderBreakdown(current?.breakdown)}</div> : null}</div> : <div style={styles.card}><div style={{ textAlign: "center", fontSize: 42 }}>💀</div><div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>Run Over</div><p style={{ textAlign: "center", color: "#cbd5e1" }}>You ran out of lives. Reset and go again.</p><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser(blankUserState())}>Start New Run</button></div>}
+    <div style={{ ...styles.card, padding: 12 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}><button style={buttonStyle(false, false)} onClick={() => updateUser({ feedback: { ok: true, text: "Progress saved", explanation: "Your profile has been saved on this device." } })}>💾 Save</button><button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button><button style={buttonStyle(currentUser.muted, false)} onClick={() => updateUser({ muted: !currentUser.muted })}>{currentUser.muted ? "🔇 Muted" : "🔊 Sound"}</button></div><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(currentUser.mode === topic.id ? styles.buttonActive : {}) }} onClick={() => { const nextPool = topic.id === "phrasebook" ? combinedContent.phrasebook : combinedContent.translate.filter((d) => topic.id === "all" || d.topicId === topic.id); updateUser({ mode: topic.id, currentDrillId: getRandomDrillId(nextPool.length ? nextPool : combinedContent.translate), feedback: null, input: "", shuffledOptions: {}, lastCorrectAnswer: "" }); }}>{topic.label}</button>)}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => switchMode("typing")}>🧠 Typing</button><button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => switchMode("multiple")}>🎯 Multiple Choice</button><button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => switchMode("listening")}>🎧 Listening</button><button style={buttonStyle(currentUser.playMode === "words", false)} onClick={() => switchMode("words")}>🔤 Words</button><button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => switchMode("conversation")}>💬 Conversation</button><button style={buttonStyle(currentUser.playMode === "phrasebook", false)} onClick={() => switchMode("phrasebook")}>⭐ My Training</button><button style={buttonStyle(currentUser.playMode === "phrasebook_edit", false)} onClick={() => updateUser({ playMode: "phrasebook_edit", feedback: null, input: "" })}>➕ Add Phrase</button><button style={buttonStyle(currentUser.showReviewOnly, true)} onClick={() => updateUser({ showReviewOnly: !currentUser.showReviewOnly, currentDrillId: getRandomDrillId(combinedContent.translate), shuffledOptions: {} })}>🔁 Review Mistakes</button><button style={buttonStyle(false, true)} onClick={resetProfile}>↺ Reset Profile</button></div></div>
 
-      <div style={styles.card}><h3 style={styles.sectionTitle}>🔐 Learning Focus</h3><div style={{ display: "grid", gap: 10, marginTop: 12 }}><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Manual phrasebook active</div><div style={styles.muted}>{(currentUser.phrasebook || []).length} custom items saved. They are included in Typing, Listening, and My Training.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Dataset active</div><div style={styles.muted}>{flattenPhrases(baliBahasaDataset).length} phrases, {flattenWords(baliBahasaDataset).length} words, {flattenConversationChains(baliBahasaDataset).length} conversation chains loaded from src/dataset.js.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>App version</div><div style={styles.muted}>{APP_VERSION_LABEL}</div><div style={{ ...styles.muted, fontSize: 12, marginTop: 4 }}>Build {APP_VERSION}</div></div></div></div>
-    </div></div>
-  );
+    {currentUser.playMode === "phrasebook_edit" ? renderPhrasebookManager() : currentUser.hearts > 0 ? <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current?.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>Drill {currentUser.answeredIds.length + 1}</div></div><div style={{ marginTop: 14, marginBottom: 8, color: "#94a3b8", fontSize: 13, lineHeight: 1.4 }}><strong style={{ color: "#cbd5e1" }}>Scenario:</strong> {current?.scenario}</div><div style={{ marginBottom: 10, color: "#86efac", fontSize: 13, fontWeight: 700 }}>{current?.direction}</div>{currentUser.playMode === "conversation" ? <div style={{ ...styles.achievementRow, marginBottom: 12 }}><div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div><div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current?.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current?.tip}</div></div> : <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current?.prompt}</h2>}{isTypingLike ? <><div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>Type your answer in <strong>Bahasa Indonesia</strong>.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(event) => updateUser({ input: event.target.value })} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} placeholder="Type your answer in Bahasa Indonesia" /><button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current?.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(playPromptText)}>🔊 Play Bahasa</button></div>}<div style={{ marginTop: 12, ...styles.muted }}>{isTypingLike ? `Translate into Bahasa Indonesia. Tip: ${current?.tip}` : `Tip: ${current?.tip}`}</div>{isTypingLike ? <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button> : null}{currentUser.lastCorrectAnswer ? <button style={{ ...styles.button, width: "100%", marginTop: 10 }} onClick={() => speak(currentUser.lastCorrectAnswer)}>🔊 Play Correct Answer</button> : null}{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>{renderBreakdown(current?.breakdown)}</div> : null}</div> : <div style={styles.card}><div style={{ textAlign: "center", fontSize: 42 }}>💀</div><div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>Run Over</div><p style={{ textAlign: "center", color: "#cbd5e1" }}>You ran out of lives. Reset and go again.</p><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser(blankUserState())}>Start New Run</button></div>}
+
+    <div style={styles.card}><h3 style={styles.sectionTitle}>🏆 Achievements</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{achievements.map((item) => { const unlockedNow = currentUser.unlocked.includes(item.key); return <div key={item.key} style={{ ...styles.achievementRow, background: unlockedNow ? "rgba(251,191,36,0.10)" : "rgba(15,23,42,0.68)", borderColor: unlockedNow ? "rgba(251,191,36,0.22)" : "rgba(255,255,255,0.10)" }}><div style={styles.row}><div><div style={{ fontWeight: 800 }}>{item.label}</div><div style={{ ...styles.muted, fontSize: 14, marginTop: 3 }}>{item.desc}</div></div><div style={{ fontSize: 22 }}>{unlockedNow ? "🏆" : "🔒"}</div></div></div>; })}</div></div>
+
+    <div style={styles.card}><h3 style={styles.sectionTitle}>🔐 Learning Focus</h3><div style={{ display: "grid", gap: 10, marginTop: 12 }}><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Manual phrasebook active</div><div style={styles.muted}>{(currentUser.phrasebook || []).length} custom items saved. They are included in Typing, Listening, and My Training.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Sound effects</div><div style={styles.muted}>Add files to public/sounds/: correct.mp3, wrong.mp3, level-up.mp3, daily-goal.mp3. The app will use them automatically.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Dataset active</div><div style={styles.muted}>{flattenPhrases(baliBahasaDataset).length} phrases, {flattenWords(baliBahasaDataset).length} words, {flattenConversationChains(baliBahasaDataset).length} conversation chains loaded from src/dataset.js.</div></div></div></div>
+
+    {renderFooter()}
+  </div></div>;
 }
