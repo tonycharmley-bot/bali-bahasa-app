@@ -1,16 +1,34 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import baliBahasaDataset from "./dataset";
 
-const APP_VERSION = "1.5.0";
-const APP_VERSION_LABEL = "Version 1.5 — Gamified Manual Phrasebook";
-const STORAGE_KEY = "bali-bahasa-profiles-v9";
+const APP_VERSION = "1.6.0";
+const APP_VERSION_LABEL = "Version 1.6 — Fast Conversation System";
+const STORAGE_KEY = "bali-bahasa-profiles-v10";
 
 function normalize(text) {
   return String(text || "")
     .toLowerCase()
-    .replace(/[?.!,]/g, "")
+    .replace(/[?.!,;:]/g, "")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+function expandVariants(answer) {
+  const base = normalize(answer);
+  const variants = new Set([base]);
+  variants.add(base.replace(/\btidak\b/g, "nggak"));
+  variants.add(base.replace(/\bnggak\b/g, "tidak"));
+  variants.add(base.replace(/^saya /, ""));
+  variants.add(base.replace(/^aku /, ""));
+  variants.add(base.replace(/\bsaya\b/g, "aku"));
+  variants.add(base.replace(/\baku\b/g, "saya"));
+  return Array.from(variants).filter(Boolean);
+}
+
+function isAnswerCorrect(submitted, answers) {
+  const value = normalize(submitted);
+  const acceptable = answers.flatMap(expandVariants);
+  return acceptable.some((answer) => answer === value);
 }
 
 function shuffleArray(items) {
@@ -20,6 +38,16 @@ function shuffleArray(items) {
     [copy[i], copy[j]] = [copy[j], copy[i]];
   }
   return copy;
+}
+
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function addDays(days) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 function getLevelData(score) {
@@ -107,7 +135,7 @@ function createListeningDrills(dataset) {
       scenario: phrase.category,
       direction: "Choose the correct meaning",
       prompt: phrase.idn,
-      answers: [normalize(phrase.eng)],
+      answers: [phrase.eng],
       options: shuffleArray([phrase.eng, ...distractors]),
       tip: "Listen and choose the English meaning.",
       explanation: `${phrase.idn} = ${phrase.eng}`,
@@ -131,7 +159,7 @@ function createWordDrills(dataset) {
       scenario: word.category,
       direction: "Choose the correct meaning",
       prompt: word.idn,
-      answers: [normalize(word.eng)],
+      answers: [word.eng],
       options: shuffleArray([word.eng, ...distractors]),
       tip: `${word.type || "word"} · ${word.tags?.join(", ") || "core vocabulary"}`,
       explanation: `${word.idn} = ${word.eng}`,
@@ -150,9 +178,7 @@ function createConversationDrills(dataset) {
       if (turn.speaker !== "user") return;
       const previousTurn = chain.turns[index - 1];
       const otherUserTurns = chains.flatMap((otherChain) =>
-        (otherChain.turns || [])
-          .filter((item) => item.speaker === "user" && item.idn !== turn.idn)
-          .map((item) => item.idn)
+        (otherChain.turns || []).filter((item) => item.speaker === "user" && item.idn !== turn.idn).map((item) => item.idn)
       );
       userTurns.push({
         id: `c-${chain.id}-${index}`,
@@ -175,6 +201,30 @@ function createConversationDrills(dataset) {
     });
   });
   return userTurns;
+}
+
+function createBuilderDrills(dataset) {
+  const phrases = flattenPhrases(dataset).filter((phrase) => phrase.idn.split(" ").length >= 3 && phrase.idn.split(" ").length <= 7);
+  return phrases.map((phrase, index) => {
+    const words = phrase.idn.split(" ");
+    return {
+      id: `b-${phrase.id || index}`,
+      sourceId: phrase.id,
+      type: "builder",
+      category: phrase.category,
+      topicId: phrase.topicId,
+      scenario: phrase.category,
+      direction: "Build the sentence in Bahasa Indonesia",
+      prompt: phrase.eng,
+      answers: [phrase.idn],
+      tiles: shuffleArray(words),
+      tip: phrase.pattern || "Arrange the words in the right order.",
+      explanation: `${phrase.idn} = ${phrase.eng}`,
+      breakdown: phrase.breakdown || [],
+      level: phrase.level || 1,
+      tags: phrase.tags || []
+    };
+  });
 }
 
 function createPhrasebookDrills(phrasebook) {
@@ -210,7 +260,7 @@ function createPhrasebookDrills(phrasebook) {
       scenario: "Personal phrasebook listening",
       direction: "Choose the correct meaning",
       prompt: item.idn,
-      answers: [normalize(item.eng)],
+      answers: [item.eng],
       options: shuffleArray([item.eng, ...others.map((other) => other.eng)]),
       tip: item.note || "Listen and choose the meaning.",
       explanation: `${item.idn} = ${item.eng}`,
@@ -219,7 +269,26 @@ function createPhrasebookDrills(phrasebook) {
       tags: ["phrasebook", item.kind || "phrase"]
     };
   });
-  return { translate, listening, all: [...translate, ...listening] };
+  const builder = items
+    .filter((item) => item.idn.split(" ").length >= 2 && item.idn.split(" ").length <= 8)
+    .map((item) => ({
+      id: `pb-b-${item.id}`,
+      sourceId: item.id,
+      type: "phrasebook_builder",
+      category: "My Phrasebook",
+      topicId: "phrasebook",
+      scenario: "Personal phrasebook builder",
+      direction: "Build the sentence in Bahasa Indonesia",
+      prompt: item.eng,
+      answers: [item.idn],
+      tiles: shuffleArray(item.idn.split(" ")),
+      tip: item.note || "Build your saved phrase.",
+      explanation: `${item.idn} = ${item.eng}`,
+      breakdown: [[item.idn, item.eng]],
+      level: 1,
+      tags: ["phrasebook", "builder"]
+    }));
+  return { translate, listening, builder, all: [...translate, ...listening, ...builder] };
 }
 
 function buildBaseDrills(dataset) {
@@ -227,10 +296,18 @@ function buildBaseDrills(dataset) {
   const listening = createListeningDrills(dataset);
   const words = createWordDrills(dataset);
   const conversation = createConversationDrills(dataset);
-  return { translate, listening, words, conversation, all: [...translate, ...listening, ...words] };
+  const builder = createBuilderDrills(dataset);
+  return { translate, listening, words, conversation, builder, all: [...translate, ...listening, ...words, ...builder] };
 }
 
 const baseContent = buildBaseDrills(baliBahasaDataset);
+const missions = [
+  { id: "mission-warung", label: "Order Food", topicId: "warung_food", goal: 5, description: "Practise ordering, spice, drinks, and paying." },
+  { id: "mission-driver", label: "Talk to Driver", topicId: "transport_driver", goal: 5, description: "Practise pickup, location, time, and traffic." },
+  { id: "mission-villa", label: "Villa Staff", topicId: "villa_staff", goal: 5, description: "Practise cleaning, AC, keys, and maintenance." },
+  { id: "mission-smalltalk", label: "Small Talk", topicId: "social_smalltalk", goal: 5, description: "Practise friendly local chat." }
+];
+
 const topicList = [
   { id: "all", label: "All" },
   { id: "phrasebook", label: "My Phrasebook" },
@@ -244,7 +321,8 @@ const achievements = [
   { key: "level3", label: "Conversational Spark", desc: "Reach level 3" },
   { key: "dailyGoal", label: "Daily Discipline", desc: "Finish your daily goal" },
   { key: "phraseCollector", label: "Phrase Collector", desc: "Save 5 custom phrasebook items" },
-  { key: "coin100", label: "Coin Hunter", desc: "Earn 100 coins" }
+  { key: "coin100", label: "Coin Hunter", desc: "Earn 100 coins" },
+  { key: "missionComplete", label: "Mission Ready", desc: "Complete a real Bali mission" }
 ];
 
 function getRandomDrillId(items) {
@@ -252,15 +330,21 @@ function getRandomDrillId(items) {
   return items[Math.floor(Math.random() * items.length)].id;
 }
 
-function chooseAdaptiveDrill(items, stats, excludeId) {
-  const candidates = items.filter((item) => item.id !== excludeId);
+function chooseAdaptiveDrill(items, stats, excludeId, schedule = {}, onlyDue = false) {
+  const today = todayKey();
+  let candidates = items.filter((item) => item.id !== excludeId);
+  if (onlyDue) {
+    const due = candidates.filter((item) => !schedule[item.id]?.nextReview || schedule[item.id].nextReview <= today);
+    if (due.length) candidates = due;
+  }
   const source = candidates.length ? candidates : items;
   if (!source.length) return null;
   const weighted = source.map((item) => {
     const s = stats[item.id] || { seen: 0, correct: 0, wrong: 0, streak: 0 };
+    const dueBoost = !schedule[item.id]?.nextReview || schedule[item.id].nextReview <= today ? 3 : 0;
     const weaknessBoost = s.wrong * 3 + Math.max(0, s.seen - s.correct) * 1.5;
     const masteryPenalty = Math.min(s.streak * 0.7, 2.5);
-    return { item, weight: Math.max(1, 1 + weaknessBoost - masteryPenalty) };
+    return { item, weight: Math.max(1, 1 + dueBoost + weaknessBoost - masteryPenalty) };
   });
   const total = weighted.reduce((sum, entry) => sum + entry.weight, 0);
   let roll = Math.random() * total;
@@ -294,12 +378,16 @@ function blankUserState() {
     showReviewOnly: false,
     comboMultiplier: 1,
     drillStats: {},
+    reviewSchedule: {},
     phrasebook: [],
     phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" },
     muted: false,
     lastCorrectAnswer: "",
     lastLevel: 1,
-    soundEvent: ""
+    builderAnswer: [],
+    activeMissionId: "",
+    missionProgress: {},
+    placementDone: false
   };
 }
 
@@ -350,6 +438,7 @@ export default function App() {
     listening: [...baseContent.listening, ...phrasebookContent.listening],
     words: baseContent.words,
     conversation: baseContent.conversation,
+    builder: [...baseContent.builder, ...phrasebookContent.builder],
     phrasebook: phrasebookContent.all
   }), [phrasebookContent]);
 
@@ -405,18 +494,29 @@ export default function App() {
     };
   }, []);
 
+  const dueCount = useMemo(() => {
+    const today = todayKey();
+    return Object.values(currentUser.reviewSchedule || {}).filter((item) => !item.nextReview || item.nextReview <= today).length;
+  }, [currentUser.reviewSchedule]);
+
+  const activeMission = missions.find((mission) => mission.id === currentUser.activeMissionId);
+
   const pool = useMemo(() => {
     if (currentUser.playMode === "conversation") return combinedContent.conversation;
     if (currentUser.playMode === "listening") return combinedContent.listening;
     if (currentUser.playMode === "words") return combinedContent.words;
     if (currentUser.playMode === "phrasebook") return combinedContent.phrasebook;
+    if (currentUser.playMode === "builder") return combinedContent.builder;
+    if (currentUser.playMode === "review") return combinedContent.translate.filter((d) => currentUser.reviewSchedule?.[d.id]?.nextReview <= todayKey());
+    if (currentUser.playMode === "weak") return combinedContent.translate.filter((d) => currentUser.wrongIds.includes(d.id));
+    if (currentUser.playMode === "mission" && activeMission) return combinedContent.translate.filter((d) => d.topicId === activeMission.topicId);
 
     let filtered = combinedContent.translate;
     if (currentUser.mode === "phrasebook") filtered = combinedContent.phrasebook.filter((d) => d.type === "phrasebook");
     if (currentUser.mode !== "all" && currentUser.mode !== "phrasebook") filtered = filtered.filter((d) => d.topicId === currentUser.mode);
     if (currentUser.showReviewOnly) filtered = filtered.filter((d) => currentUser.wrongIds.includes(d.id));
     return filtered.length ? filtered : combinedContent.translate;
-  }, [currentUser.mode, currentUser.showReviewOnly, currentUser.wrongIds, currentUser.playMode, combinedContent]);
+  }, [currentUser.mode, currentUser.showReviewOnly, currentUser.wrongIds, currentUser.playMode, currentUser.reviewSchedule, currentUser.activeMissionId, combinedContent, activeMission]);
 
   const current = useMemo(() => pool.find((d) => d.id === currentUser.currentDrillId) || pool[0] || combinedContent.translate[0], [pool, currentUser.currentDrillId, combinedContent.translate]);
 
@@ -430,7 +530,7 @@ export default function App() {
   useEffect(() => {
     if (!current || currentUser.playMode === "phrasebook_edit") return;
     const key = `${currentUser.playMode}-${current.id}`;
-    if (!currentUser.shuffledOptions?.[key]) {
+    if (!currentUser.shuffledOptions?.[key] && current.options) {
       updateUser({ shuffledOptions: { ...(currentUser.shuffledOptions || {}), [key]: shuffleArray(current.options || []) } });
     }
   }, [current?.id, currentUser.playMode]);
@@ -458,6 +558,7 @@ export default function App() {
     if (currentUser.completedToday >= currentUser.dailyGoal) nextUnlocked.push("dailyGoal");
     if ((currentUser.phrasebook || []).length >= 5) nextUnlocked.push("phraseCollector");
     if (currentUser.coins >= 100) nextUnlocked.push("coin100");
+    if (Object.values(currentUser.missionProgress || {}).some((p) => p.completed)) nextUnlocked.push("missionComplete");
     const nextCombo = Math.min(3, 1 + Math.floor(currentUser.streak / 3) * 0.5);
     const sameUnlocked = JSON.stringify(currentUser.unlocked) === JSON.stringify(nextUnlocked);
     const newLevel = levelData.level;
@@ -465,7 +566,7 @@ export default function App() {
     if (!sameUnlocked || currentUser.comboMultiplier !== nextCombo || currentUser.lastLevel !== newLevel) {
       updateUser({ unlocked: nextUnlocked, comboMultiplier: nextCombo, lastLevel: newLevel });
     }
-  }, [currentUser.score, currentUser.bestStreak, currentUser.completedToday, currentUser.dailyGoal, currentUser.phrasebook, currentUser.coins, currentUser.streak, currentUser.comboMultiplier, currentUser.unlocked, currentUser.lastLevel, levelData.level]);
+  }, [currentUser.score, currentUser.bestStreak, currentUser.completedToday, currentUser.dailyGoal, currentUser.phrasebook, currentUser.coins, currentUser.streak, currentUser.comboMultiplier, currentUser.unlocked, currentUser.lastLevel, currentUser.missionProgress, levelData.level]);
 
   const buttonStyle = (active, warn) => ({ ...styles.button, ...(active ? styles.buttonActive : {}), ...(warn ? styles.buttonWarn : {}) });
   const progressFill = (value) => ({ width: `${Math.max(0, Math.min(100, value))}%`, height: "100%", background: "linear-gradient(90deg, #34d399 0%, #10b981 100%)" });
@@ -477,25 +578,45 @@ export default function App() {
       listening: combinedContent.listening,
       words: combinedContent.words,
       conversation: combinedContent.conversation,
-      phrasebook: combinedContent.phrasebook
+      phrasebook: combinedContent.phrasebook,
+      builder: combinedContent.builder,
+      review: combinedContent.translate.filter((d) => currentUser.reviewSchedule?.[d.id]?.nextReview <= todayKey()),
+      weak: combinedContent.translate.filter((d) => currentUser.wrongIds.includes(d.id))
     };
     const nextPool = pools[playMode] || combinedContent.translate;
-    if (playMode === "phrasebook" && !nextPool.length) {
-      updateUser({ playMode: "phrasebook_edit", feedback: { ok: false, text: "Add phrases first", explanation: "My Training uses only your manually added words and phrases." }, input: "" });
+    if (["phrasebook", "review", "weak"].includes(playMode) && !nextPool.length) {
+      const messages = {
+        phrasebook: ["Add phrases first", "My Training uses only your manually added words and phrases."],
+        review: ["No reviews due", "Spaced repetition items will appear here when they are due."],
+        weak: ["No weak phrases yet", "Mistakes you make will appear here for focused review."]
+      };
+      updateUser({ playMode: playMode === "phrasebook" ? "phrasebook_edit" : "typing", feedback: { ok: false, text: messages[playMode][0], explanation: messages[playMode][1] }, input: "" });
       return;
     }
-    updateUser({ playMode, currentDrillId: getRandomDrillId(nextPool), shuffledOptions: {}, feedback: null, input: "", lastCorrectAnswer: "" });
+    updateUser({ playMode, currentDrillId: getRandomDrillId(nextPool), shuffledOptions: {}, feedback: null, input: "", lastCorrectAnswer: "", builderAnswer: [] });
+  };
+
+  const startMission = (mission) => {
+    const missionPool = combinedContent.translate.filter((d) => d.topicId === mission.topicId);
+    updateUser({ activeMissionId: mission.id, playMode: "mission", currentDrillId: getRandomDrillId(missionPool), feedback: null, input: "", shuffledOptions: {}, builderAnswer: [] });
   };
 
   const updateDrillStats = (drillId, wasCorrect) => {
     const previousStats = currentUser.drillStats || {};
     const existing = previousStats[drillId] || { seen: 0, correct: 0, wrong: 0, streak: 0 };
-    updateUser({ drillStats: { ...previousStats, [drillId]: { seen: existing.seen + 1, correct: existing.correct + (wasCorrect ? 1 : 0), wrong: existing.wrong + (wasCorrect ? 0 : 1), streak: wasCorrect ? existing.streak + 1 : 0 } } });
+    const currentSchedule = currentUser.reviewSchedule?.[drillId] || { interval: 0, nextReview: todayKey() };
+    const nextInterval = wasCorrect ? Math.min(Math.max(1, currentSchedule.interval || 0) * 2, 30) : 1;
+    const nextReview = wasCorrect ? addDays(nextInterval) : addDays(1);
+    updateUser({
+      drillStats: { ...previousStats, [drillId]: { seen: existing.seen + 1, correct: existing.correct + (wasCorrect ? 1 : 0), wrong: existing.wrong + (wasCorrect ? 0 : 1), streak: wasCorrect ? existing.streak + 1 : 0 } },
+      reviewSchedule: { ...(currentUser.reviewSchedule || {}), [drillId]: { interval: nextInterval, nextReview, lastResult: wasCorrect ? "correct" : "wrong" } }
+    });
   };
 
   const moveToNextDrill = () => {
-    const next = chooseAdaptiveDrill(pool, currentUser.drillStats || {}, current?.id);
-    updateUser({ currentDrillId: next ? next.id : getRandomDrillId(pool), shuffledOptions: {}, lastCorrectAnswer: "" });
+    const onlyDue = currentUser.playMode === "review";
+    const next = chooseAdaptiveDrill(pool, currentUser.drillStats || {}, current?.id, currentUser.reviewSchedule || {}, onlyDue);
+    updateUser({ currentDrillId: next ? next.id : getRandomDrillId(pool), shuffledOptions: {}, lastCorrectAnswer: "", builderAnswer: [] });
   };
 
   const speak = (text) => {
@@ -524,10 +645,18 @@ export default function App() {
     recognition.start();
   };
 
+  const updateMissionProgress = () => {
+    if (currentUser.playMode !== "mission" || !activeMission) return {};
+    const prev = currentUser.missionProgress?.[activeMission.id] || { count: 0, completed: false };
+    const nextCount = prev.count + 1;
+    const completed = nextCount >= activeMission.goal;
+    if (completed && !prev.completed) playSound("daily-goal");
+    return { missionProgress: { ...(currentUser.missionProgress || {}), [activeMission.id]: { count: nextCount, completed } } };
+  };
+
   const checkAnswer = (submitted) => {
     if (!current || currentUser.hearts <= 0) return;
-    const value = normalize(submitted);
-    const isCorrect = current.answers.some((answer) => normalize(answer) === value);
+    const isCorrect = isAnswerCorrect(submitted, current.answers);
     const isPhrasebook = current.type?.includes("phrasebook") || currentUser.playMode === "phrasebook";
     if (isCorrect) {
       updateDrillStats(current.id, true);
@@ -537,6 +666,7 @@ export default function App() {
       const coinsGained = Math.max(1, Math.round(gained / 5));
       const dailyGoalJustCompleted = currentUser.completedToday + 1 === currentUser.dailyGoal;
       if (dailyGoalJustCompleted) playSound("daily-goal");
+      const missionPatch = updateMissionProgress();
       updateUser({
         score: currentUser.score + gained,
         coins: currentUser.coins + coinsGained,
@@ -548,7 +678,8 @@ export default function App() {
         wrongIds: currentUser.wrongIds.filter((id) => id !== current.id),
         feedback: { ok: true, text: `Correct. +${gained} points · +${coinsGained} coins`, explanation: current.explanation },
         input: "",
-        lastCorrectAnswer: current.answers[0]
+        lastCorrectAnswer: current.answers[0],
+        ...missionPatch
       });
       setTimeout(() => {
         updateUser({ feedback: null });
@@ -572,6 +703,11 @@ export default function App() {
     checkAnswer(currentUser.input);
   };
 
+  const submitBuilder = () => {
+    const answer = (currentUser.builderAnswer || []).join(" ");
+    checkAnswer(answer);
+  };
+
   const addPhrasebookItem = () => {
     const form = currentUser.phrasebookForm || {};
     const idn = (form.idn || "").trim();
@@ -587,7 +723,7 @@ export default function App() {
     updateUser({
       phrasebook: [item, ...(currentUser.phrasebook || [])],
       phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" },
-      feedback: { ok: true, text: "Added to training", explanation: "This item is now included in My Training, Typing, and Listening training." }
+      feedback: { ok: true, text: "Added to training", explanation: "This item is now included in My Training, Builder, Typing, and Listening training." }
     });
   };
 
@@ -626,67 +762,43 @@ export default function App() {
 
   const renderBreakdown = (breakdown) => {
     if (!breakdown || !breakdown.length) return null;
-    return (
-      <div style={{ marginTop: 12, ...styles.achievementRow }}>
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>Phrase Breakdown</div>
-        <div style={{ display: "grid", gap: 6 }}>
-          {breakdown.map(([phrase, meaning]) => (
-            <div key={`${phrase}-${meaning}`} style={{ color: "#cbd5e1", fontSize: 14 }}><strong style={{ color: "#86efac" }}>{phrase}</strong> = {meaning}</div>
-          ))}
-        </div>
-      </div>
-    );
+    return <div style={{ marginTop: 12, ...styles.achievementRow }}><div style={{ fontWeight: 800, marginBottom: 8 }}>Phrase Breakdown</div><div style={{ display: "grid", gap: 6 }}>{breakdown.map(([phrase, meaning]) => <div key={`${phrase}-${meaning}`} style={{ color: "#cbd5e1", fontSize: 14 }}><strong style={{ color: "#86efac" }}>{phrase}</strong> = {meaning}</div>)}</div></div>;
   };
 
   const renderFooter = () => <div style={styles.footer}>Created by Tony Charmley · {APP_VERSION_LABEL}</div>;
 
   const renderPhrasebookManager = () => {
     const form = currentUser.phrasebookForm || { idn: "", eng: "", note: "", kind: "phrase" };
-    return (
-      <div style={styles.card}>
-        <div style={styles.row}>
-          <div style={styles.badge}>My Phrasebook</div>
-          <div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>{(currentUser.phrasebook || []).length} saved</div>
-        </div>
-        <h2 style={{ fontSize: 22, lineHeight: 1.25, marginTop: 14, marginBottom: 8, color: "#fff", fontWeight: 800 }}>Add your own words and phrases</h2>
-        <p style={{ ...styles.muted, lineHeight: 1.5 }}>Add phrases from real life, WhatsApp messages, staff conversations, signs, menus, or anything you want to practise. Saved items are automatically included in training.</p>
-
-        <div style={{ display: "grid", gap: 10, marginTop: 14 }}>
-          <div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Bahasa Indonesia</div><input style={styles.input} value={form.idn} onChange={(e) => updateUser({ phrasebookForm: { ...form, idn: e.target.value } })} placeholder="Example: Bisa datang sekarang?" /></div>
-          <div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>English meaning</div><input style={styles.input} value={form.eng} onChange={(e) => updateUser({ phrasebookForm: { ...form, eng: e.target.value } })} placeholder="Example: Can you come now?" /></div>
-          <div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Note or context</div><textarea style={styles.textarea} value={form.note} onChange={(e) => updateUser({ phrasebookForm: { ...form, note: e.target.value } })} placeholder="Example: Use this when messaging villa staff" /></div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={form.kind === "phrase" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "phrase" } })}>Phrase</button><button style={form.kind === "word" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "word" } })}>Word</button></div>
-          <button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={addPhrasebookItem}>Add to Training</button>
-        </div>
-
-        {currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div></div> : null}
-
-        <div style={{ marginTop: 18 }}><h3 style={styles.sectionTitle}>Saved Items</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => <div key={item.id} style={styles.achievementRow}><div style={{ fontWeight: 800, color: "#86efac" }}>{item.idn}</div><div style={{ color: "#e5edf7", marginTop: 4 }}>{item.eng}</div>{item.note ? <div style={{ ...styles.muted, marginTop: 6, fontSize: 13 }}>{item.note}</div> : null}<div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}><button style={styles.button} onClick={() => speak(item.idn)}>🔊 Listen</button><button style={styles.button} onClick={() => switchMode("phrasebook")}>Train</button><button style={buttonStyle(false, true)} onClick={() => removePhrasebookItem(item.id)}>Delete</button></div></div>) : <div style={{ ...styles.muted, lineHeight: 1.5 }}>No saved phrases yet. Add your first word or phrase above.</div>}</div></div>
-      </div>
-    );
+    return <div style={styles.card}><div style={styles.row}><div style={styles.badge}>My Phrasebook</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>{(currentUser.phrasebook || []).length} saved</div></div><h2 style={{ fontSize: 22, lineHeight: 1.25, marginTop: 14, marginBottom: 8, color: "#fff", fontWeight: 800 }}>Add your own words and phrases</h2><p style={{ ...styles.muted, lineHeight: 1.5 }}>Add phrases from real life, WhatsApp messages, staff conversations, signs, menus, or anything you want to practise.</p><div style={{ display: "grid", gap: 10, marginTop: 14 }}><div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Bahasa Indonesia</div><input style={styles.input} value={form.idn} onChange={(e) => updateUser({ phrasebookForm: { ...form, idn: e.target.value } })} placeholder="Example: Bisa datang sekarang?" /></div><div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>English meaning</div><input style={styles.input} value={form.eng} onChange={(e) => updateUser({ phrasebookForm: { ...form, eng: e.target.value } })} placeholder="Example: Can you come now?" /></div><div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Note or context</div><textarea style={styles.textarea} value={form.note} onChange={(e) => updateUser({ phrasebookForm: { ...form, note: e.target.value } })} placeholder="Example: Use this when messaging villa staff" /></div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={form.kind === "phrase" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "phrase" } })}>Phrase</button><button style={form.kind === "word" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "word" } })}>Word</button></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={addPhrasebookItem}>Add to Training</button></div>{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div></div> : null}<div style={{ marginTop: 18 }}><h3 style={styles.sectionTitle}>Saved Items</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => <div key={item.id} style={styles.achievementRow}><div style={{ fontWeight: 800, color: "#86efac" }}>{item.idn}</div><div style={{ color: "#e5edf7", marginTop: 4 }}>{item.eng}</div>{item.note ? <div style={{ ...styles.muted, marginTop: 6, fontSize: 13 }}>{item.note}</div> : null}<div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}><button style={styles.button} onClick={() => speak(item.idn)}>🔊 Listen</button><button style={styles.button} onClick={() => switchMode("phrasebook")}>Train</button><button style={buttonStyle(false, true)} onClick={() => removePhrasebookItem(item.id)}>Delete</button></div></div>) : <div style={{ ...styles.muted, lineHeight: 1.5 }}>No saved phrases yet. Add your first word or phrase above.</div>}</div></div></div>;
   };
 
+  const renderMissions = () => <div style={styles.card}><h3 style={styles.sectionTitle}>🎯 Real Bali Missions</h3><p style={{ ...styles.muted, lineHeight: 1.5 }}>Missions are short focused sessions for actual Bali situations.</p><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{missions.map((mission) => { const progress = currentUser.missionProgress?.[mission.id] || { count: 0, completed: false }; return <div key={mission.id} style={styles.achievementRow}><div style={styles.row}><div><div style={{ fontWeight: 800 }}>{mission.label}</div><div style={{ ...styles.muted, fontSize: 13, marginTop: 3 }}>{mission.description}</div><div style={{ ...styles.muted, fontSize: 13, marginTop: 5 }}>{Math.min(progress.count, mission.goal)}/{mission.goal} complete {progress.completed ? "✅" : ""}</div></div><button style={styles.buttonPrimary} onClick={() => startMission(mission)}>Start</button></div></div>; })}</div></div>;
+
   if (showProfileManager) {
-    return <div style={styles.page}><div style={styles.wrap}><div style={styles.pill}>👤 Choose a learner</div><h1 style={styles.heroTitle}>Who is using the app?</h1><p style={styles.heroText}>Each profile keeps separate progress, streaks, coins, mistakes, and phrasebook items on this device.</p><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.profileButton} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}><div style={{ fontWeight: 800 }}>{name}</div><div style={{ color: "#94a3b8", marginTop: 4, fontSize: 13 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} pts · {(profiles[name] || {}).coins || 0} coins · {((profiles[name] || {}).phrasebook || []).length} saved</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} placeholder="Add a new profile name" /><button style={styles.buttonPrimary} onClick={createProfile}>Add</button></div></div>{renderFooter()}</div></div>;
+    return <div style={styles.page}><div style={styles.wrap}><div style={styles.pill}>👤 Choose a learner</div><h1 style={styles.heroTitle}>Who is using the app?</h1><p style={styles.heroText}>Each profile keeps separate progress, streaks, coins, reviews, missions, and phrasebook items.</p><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.profileButton} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}><div style={{ fontWeight: 800 }}>{name}</div><div style={{ color: "#94a3b8", marginTop: 4, fontSize: 13 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} pts · {(profiles[name] || {}).coins || 0} coins · {((profiles[name] || {}).phrasebook || []).length} saved</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} placeholder="Add a new profile name" /><button style={styles.buttonPrimary} onClick={createProfile}>Add</button></div></div>{renderFooter()}</div></div>;
   }
 
   if (!currentUser.started) {
-    return <div style={styles.page}><div style={styles.wrap}><div style={styles.row}><div style={styles.pill}>✨ Bali Bahasa Trainer</div><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button></div><h1 style={styles.heroTitle}>Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span></h1><p style={styles.heroText}>Dataset-based training plus your own manual phrasebook. Earn coins, keep streaks, add real phrases, and train them immediately.</p><div style={styles.card}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}><div style={styles.smallStat}><div style={{ fontSize: 20 }}>📚</div><div style={{ fontWeight: 800 }}>{flattenPhrases(baliBahasaDataset).length}</div><div style={styles.muted}>Phrases</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>🪙</div><div style={{ fontWeight: 800 }}>{currentUser.coins}</div><div style={styles.muted}>Coins</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>⭐</div><div style={{ fontWeight: 800 }}>{(currentUser.phrasebook || []).length}</div><div style={styles.muted}>Yours</div></div></div><div style={{ marginBottom: 14 }}><div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{[5, 10, 20].map((goal) => <button key={goal} style={goal === currentUser.dailyGoal ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ dailyGoal: goal })}>{goal} drills</button>)}</div></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser({ started: true })}>Start Training</button></div>{renderFooter()}</div></div>;
+    return <div style={styles.page}><div style={styles.wrap}><div style={styles.row}><div style={styles.pill}>✨ Bali Bahasa Trainer</div><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button></div><h1 style={styles.heroTitle}>Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span></h1><p style={styles.heroText}>Built for speed: spaced repetition, weak-phrase review, sentence builder, Bali missions, sound effects, and manual phrasebook training.</p><div style={styles.card}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}><div style={styles.smallStat}><div style={{ fontSize: 20 }}>📚</div><div style={{ fontWeight: 800 }}>{flattenPhrases(baliBahasaDataset).length}</div><div style={styles.muted}>Phrases</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔁</div><div style={{ fontWeight: 800 }}>{dueCount}</div><div style={styles.muted}>Due</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>⭐</div><div style={{ fontWeight: 800 }}>{(currentUser.phrasebook || []).length}</div><div style={styles.muted}>Yours</div></div></div><div style={{ marginBottom: 14 }}><div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{[5, 10, 20].map((goal) => <button key={goal} style={goal === currentUser.dailyGoal ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ dailyGoal: goal })}>{goal} drills</button>)}</div></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser({ started: true })}>Start Training</button></div>{renderFooter()}</div></div>;
   }
 
-  const isTypingLike = currentUser.playMode === "typing" || currentUser.playMode === "phrasebook";
+  const isTypingLike = currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" || currentUser.playMode === "review" || currentUser.playMode === "weak" || currentUser.playMode === "mission";
+  const isBuilder = currentUser.playMode === "builder";
   const playPromptText = currentUser.playMode === "listening" || currentUser.playMode === "words" ? current?.prompt : currentUser.playMode === "conversation" ? current?.theySay : current?.answers?.[0];
+  const availableTiles = isBuilder ? (current?.tiles || []).filter((_, index) => !(currentUser.builderAnswer || []).some((__, chosenIndex) => chosenIndex === index && false)) : [];
 
   return <div style={styles.page}><div style={styles.wrap}>
-    <div style={styles.card}><div style={styles.row}><div><div style={{ color: "#86efac", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 800 }}>{levelData.title}</div><div style={{ fontSize: 28, fontWeight: 800 }}>Level {levelData.level}</div></div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button><div style={{ ...styles.badge, background: "rgba(251,191,36,0.14)", color: "#fde68a", borderColor: "rgba(251,191,36,0.22)" }}>🪙 {currentUser.coins}</div></div></div><div style={{ marginTop: 14, ...styles.progressTrack }}><div style={progressFill(progressToNext)} /></div><div style={{ ...styles.statGrid, marginTop: 14 }}><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔥</div><div style={{ fontWeight: 800 }}>{currentUser.streak}</div><div style={styles.muted}>Streak</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⭐</div><div style={{ fontWeight: 800 }}>{currentUser.bestStreak}</div><div style={styles.muted}>Best</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>❤️</div><div style={{ fontWeight: 800 }}>{currentUser.hearts}</div><div style={styles.muted}>Lives</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⚔️</div><div style={{ fontWeight: 800 }}>x{currentUser.comboMultiplier.toFixed(1)}</div><div style={styles.muted}>Combo</div></div></div><div style={{ marginTop: 14 }}><div style={{ ...styles.row, marginBottom: 6 }}><div style={styles.muted}>Daily goal</div><div style={{ color: "#86efac", fontWeight: 700 }}>{currentUser.completedToday}/{currentUser.dailyGoal}</div></div><div style={styles.progressTrack}><div style={progressFill((currentUser.completedToday / currentUser.dailyGoal) * 100)} /></div></div></div>
+    <div style={styles.card}><div style={styles.row}><div><div style={{ color: "#86efac", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 800 }}>{levelData.title}</div><div style={{ fontSize: 28, fontWeight: 800 }}>Level {levelData.level}</div></div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button><div style={{ ...styles.badge, background: "rgba(251,191,36,0.14)", color: "#fde68a", borderColor: "rgba(251,191,36,0.22)" }}>🪙 {currentUser.coins}</div></div></div><div style={{ marginTop: 14, ...styles.progressTrack }}><div style={progressFill(progressToNext)} /></div><div style={{ ...styles.statGrid, marginTop: 14 }}><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔥</div><div style={{ fontWeight: 800 }}>{currentUser.streak}</div><div style={styles.muted}>Streak</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔁</div><div style={{ fontWeight: 800 }}>{dueCount}</div><div style={styles.muted}>Due</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>❤️</div><div style={{ fontWeight: 800 }}>{currentUser.hearts}</div><div style={styles.muted}>Lives</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⚔️</div><div style={{ fontWeight: 800 }}>x{currentUser.comboMultiplier.toFixed(1)}</div><div style={styles.muted}>Combo</div></div></div><div style={{ marginTop: 14 }}><div style={{ ...styles.row, marginBottom: 6 }}><div style={styles.muted}>Daily goal</div><div style={{ color: "#86efac", fontWeight: 700 }}>{currentUser.completedToday}/{currentUser.dailyGoal}</div></div><div style={styles.progressTrack}><div style={progressFill((currentUser.completedToday / currentUser.dailyGoal) * 100)} /></div></div></div>
 
-    <div style={{ ...styles.card, padding: 12 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}><button style={buttonStyle(false, false)} onClick={() => updateUser({ feedback: { ok: true, text: "Progress saved", explanation: "Your profile has been saved on this device." } })}>💾 Save</button><button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button><button style={buttonStyle(currentUser.muted, false)} onClick={() => updateUser({ muted: !currentUser.muted })}>{currentUser.muted ? "🔇 Muted" : "🔊 Sound"}</button></div><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(currentUser.mode === topic.id ? styles.buttonActive : {}) }} onClick={() => { const nextPool = topic.id === "phrasebook" ? combinedContent.phrasebook : combinedContent.translate.filter((d) => topic.id === "all" || d.topicId === topic.id); updateUser({ mode: topic.id, currentDrillId: getRandomDrillId(nextPool.length ? nextPool : combinedContent.translate), feedback: null, input: "", shuffledOptions: {}, lastCorrectAnswer: "" }); }}>{topic.label}</button>)}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => switchMode("typing")}>🧠 Typing</button><button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => switchMode("multiple")}>🎯 Multiple Choice</button><button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => switchMode("listening")}>🎧 Listening</button><button style={buttonStyle(currentUser.playMode === "words", false)} onClick={() => switchMode("words")}>🔤 Words</button><button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => switchMode("conversation")}>💬 Conversation</button><button style={buttonStyle(currentUser.playMode === "phrasebook", false)} onClick={() => switchMode("phrasebook")}>⭐ My Training</button><button style={buttonStyle(currentUser.playMode === "phrasebook_edit", false)} onClick={() => updateUser({ playMode: "phrasebook_edit", feedback: null, input: "" })}>➕ Add Phrase</button><button style={buttonStyle(currentUser.showReviewOnly, true)} onClick={() => updateUser({ showReviewOnly: !currentUser.showReviewOnly, currentDrillId: getRandomDrillId(combinedContent.translate), shuffledOptions: {} })}>🔁 Review Mistakes</button><button style={buttonStyle(false, true)} onClick={resetProfile}>↺ Reset Profile</button></div></div>
+    <div style={{ ...styles.card, padding: 12 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}><button style={buttonStyle(false, false)} onClick={() => updateUser({ feedback: { ok: true, text: "Progress saved", explanation: "Your profile has been saved on this device." } })}>💾 Save</button><button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button><button style={buttonStyle(currentUser.muted, false)} onClick={() => updateUser({ muted: !currentUser.muted })}>{currentUser.muted ? "🔇 Muted" : "🔊 Sound"}</button></div><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(currentUser.mode === topic.id ? styles.buttonActive : {}) }} onClick={() => { const nextPool = topic.id === "phrasebook" ? combinedContent.phrasebook : combinedContent.translate.filter((d) => topic.id === "all" || d.topicId === topic.id); updateUser({ mode: topic.id, currentDrillId: getRandomDrillId(nextPool.length ? nextPool : combinedContent.translate), feedback: null, input: "", shuffledOptions: {}, lastCorrectAnswer: "", builderAnswer: [] }); }}>{topic.label}</button>)}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => switchMode("typing")}>🧠 Typing</button><button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => switchMode("multiple")}>🎯 Multiple Choice</button><button style={buttonStyle(currentUser.playMode === "builder", false)} onClick={() => switchMode("builder")}>🧩 Builder</button><button style={buttonStyle(currentUser.playMode === "review", false)} onClick={() => switchMode("review")}>🔁 Due Review</button><button style={buttonStyle(currentUser.playMode === "weak", false)} onClick={() => switchMode("weak")}>🎯 Weak Phrases</button><button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => switchMode("listening")}>🎧 Listening</button><button style={buttonStyle(currentUser.playMode === "words", false)} onClick={() => switchMode("words")}>🔤 Words</button><button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => switchMode("conversation")}>💬 Conversation</button><button style={buttonStyle(currentUser.playMode === "phrasebook", false)} onClick={() => switchMode("phrasebook")}>⭐ My Training</button><button style={buttonStyle(currentUser.playMode === "phrasebook_edit", false)} onClick={() => updateUser({ playMode: "phrasebook_edit", feedback: null, input: "" })}>➕ Add Phrase</button><button style={buttonStyle(false, true)} onClick={resetProfile}>↺ Reset Profile</button></div></div>
 
-    {currentUser.playMode === "phrasebook_edit" ? renderPhrasebookManager() : currentUser.hearts > 0 ? <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current?.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>Drill {currentUser.answeredIds.length + 1}</div></div><div style={{ marginTop: 14, marginBottom: 8, color: "#94a3b8", fontSize: 13, lineHeight: 1.4 }}><strong style={{ color: "#cbd5e1" }}>Scenario:</strong> {current?.scenario}</div><div style={{ marginBottom: 10, color: "#86efac", fontSize: 13, fontWeight: 700 }}>{current?.direction}</div>{currentUser.playMode === "conversation" ? <div style={{ ...styles.achievementRow, marginBottom: 12 }}><div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div><div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current?.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current?.tip}</div></div> : <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current?.prompt}</h2>}{isTypingLike ? <><div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>Type your answer in <strong>Bahasa Indonesia</strong>.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(event) => updateUser({ input: event.target.value })} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} placeholder="Type your answer in Bahasa Indonesia" /><button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current?.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(playPromptText)}>🔊 Play Bahasa</button></div>}<div style={{ marginTop: 12, ...styles.muted }}>{isTypingLike ? `Translate into Bahasa Indonesia. Tip: ${current?.tip}` : `Tip: ${current?.tip}`}</div>{isTypingLike ? <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button> : null}{currentUser.lastCorrectAnswer ? <button style={{ ...styles.button, width: "100%", marginTop: 10 }} onClick={() => speak(currentUser.lastCorrectAnswer)}>🔊 Play Correct Answer</button> : null}{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>{renderBreakdown(current?.breakdown)}</div> : null}</div> : <div style={styles.card}><div style={{ textAlign: "center", fontSize: 42 }}>💀</div><div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>Run Over</div><p style={{ textAlign: "center", color: "#cbd5e1" }}>You ran out of lives. Reset and go again.</p><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser(blankUserState())}>Start New Run</button></div>}
+    {renderMissions()}
+
+    {currentUser.playMode === "phrasebook_edit" ? renderPhrasebookManager() : currentUser.hearts > 0 ? <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current?.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>{currentUser.playMode === "mission" && activeMission ? `${activeMission.label}` : `Drill ${currentUser.answeredIds.length + 1}`}</div></div><div style={{ marginTop: 14, marginBottom: 8, color: "#94a3b8", fontSize: 13, lineHeight: 1.4 }}><strong style={{ color: "#cbd5e1" }}>Scenario:</strong> {current?.scenario}</div><div style={{ marginBottom: 10, color: "#86efac", fontSize: 13, fontWeight: 700 }}>{current?.direction}</div>{currentUser.playMode === "conversation" ? <div style={{ ...styles.achievementRow, marginBottom: 12 }}><div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div><div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current?.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current?.tip}</div></div> : <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current?.prompt}</h2>}{isTypingLike ? <><div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>Type your answer in <strong>Bahasa Indonesia</strong>.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(event) => updateUser({ input: event.target.value })} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} placeholder="Type your answer in Bahasa Indonesia" /><button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current?.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div></> : isBuilder ? <><div style={{ ...styles.achievementRow, minHeight: 54, marginBottom: 10 }}>{(currentUser.builderAnswer || []).length ? currentUser.builderAnswer.map((word, idx) => <button key={`${word}-${idx}`} style={{ ...styles.button, margin: 4 }} onClick={() => updateUser({ builderAnswer: (currentUser.builderAnswer || []).filter((_, i) => i !== idx) })}>{word}</button>) : <div style={styles.muted}>Tap words below to build the sentence.</div>}</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{(current?.tiles || []).map((word, idx) => <button key={`${word}-${idx}`} style={styles.button} onClick={() => updateUser({ builderAnswer: [...(currentUser.builderAnswer || []), word] })}>{word}</button>)}</div><button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 12 }} onClick={submitBuilder}>Check Sentence</button><button style={{ ...styles.button, width: "100%", marginTop: 8 }} onClick={() => updateUser({ builderAnswer: [] })}>Clear Sentence</button></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(playPromptText)}>🔊 Play Bahasa</button></div>}<div style={{ marginTop: 12, ...styles.muted }}>{isTypingLike || isBuilder ? `Tip: ${current?.tip}` : `Tip: ${current?.tip}`}</div>{isTypingLike ? <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button> : null}{currentUser.lastCorrectAnswer ? <button style={{ ...styles.button, width: "100%", marginTop: 10 }} onClick={() => speak(currentUser.lastCorrectAnswer)}>🔊 Play Correct Answer</button> : null}{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>{renderBreakdown(current?.breakdown)}</div> : null}</div> : <div style={styles.card}><div style={{ textAlign: "center", fontSize: 42 }}>💀</div><div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>Run Over</div><p style={{ textAlign: "center", color: "#cbd5e1" }}>You ran out of lives. Reset and go again.</p><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser(blankUserState())}>Start New Run</button></div>}
 
     <div style={styles.card}><h3 style={styles.sectionTitle}>🏆 Achievements</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{achievements.map((item) => { const unlockedNow = currentUser.unlocked.includes(item.key); return <div key={item.key} style={{ ...styles.achievementRow, background: unlockedNow ? "rgba(251,191,36,0.10)" : "rgba(15,23,42,0.68)", borderColor: unlockedNow ? "rgba(251,191,36,0.22)" : "rgba(255,255,255,0.10)" }}><div style={styles.row}><div><div style={{ fontWeight: 800 }}>{item.label}</div><div style={{ ...styles.muted, fontSize: 14, marginTop: 3 }}>{item.desc}</div></div><div style={{ fontSize: 22 }}>{unlockedNow ? "🏆" : "🔒"}</div></div></div>; })}</div></div>
 
-    <div style={styles.card}><h3 style={styles.sectionTitle}>🔐 Learning Focus</h3><div style={{ display: "grid", gap: 10, marginTop: 12 }}><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Manual phrasebook active</div><div style={styles.muted}>{(currentUser.phrasebook || []).length} custom items saved. They are included in Typing, Listening, and My Training.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Sound effects</div><div style={styles.muted}>Add files to public/sounds/: correct.mp3, wrong.mp3, level-up.mp3, daily-goal.mp3. The app will use them automatically.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Dataset active</div><div style={styles.muted}>{flattenPhrases(baliBahasaDataset).length} phrases, {flattenWords(baliBahasaDataset).length} words, {flattenConversationChains(baliBahasaDataset).length} conversation chains loaded from src/dataset.js.</div></div></div></div>
+    <div style={styles.card}><h3 style={styles.sectionTitle}>🚀 Fastest Learning Path</h3><div style={{ display: "grid", gap: 10, marginTop: 12 }}><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Daily plan</div><div style={styles.muted}>Do Due Review first, then Builder, then one Real Bali Mission. Finish with 5 phrases in Typing mode.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Spaced repetition active</div><div style={styles.muted}>{dueCount} item{dueCount === 1 ? "" : "s"} due today. Correct answers move further into the future. Mistakes return tomorrow.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Sound effects</div><div style={styles.muted}>Add files to public/sounds/: correct.mp3, wrong.mp3, level-up.mp3, daily-goal.mp3.</div></div></div></div>
 
     {renderFooter()}
   </div></div>;
