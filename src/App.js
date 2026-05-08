@@ -663,7 +663,18 @@ export default function App() {
 
   if (!currentUser.started) return <div style={styles.page}><div style={styles.wrap}><div style={styles.hero}><div style={styles.pill}>Conversation-first</div><h1 style={styles.title}>Speak useful Bahasa faster</h1><p style={styles.text}>Guided practice for Bali: review, sentence building, real missions, and your own phrasebook.</p><button style={{ ...styles.primary, width: "100%", marginTop: 16 }} onClick={() => updateUser({ started: true })}>Start</button></div>{footer}</div></div>;
 
-  const screen = currentUser.activeTab === "train" ? <TrainingCard /> : currentUser.activeTab === "review" ? <Review /> : currentUser.activeTab === "speak" ? <Speak /> : currentUser.activeTab === "phrasebook" ? <Phrasebook /> : currentUser.activeTab === "profile" ? <Profile /> : <Home />;
+ const screen =
+  currentUser.activeTab === "train"
+    ? TrainingCard()
+    : currentUser.activeTab === "review"
+    ? <Review />
+    : currentUser.activeTab === "speak"
+    ? <Speak />
+    : currentUser.activeTab === "phrasebook"
+    ? <Phrasebook />
+    : currentUser.activeTab === "profile"
+    ? <Profile />
+    : <Home />;
 
   <div style={styles.bottomNav}><div style={styles.navInner}>{[["learn", "🏠", "Learn"], ["review", "🔁", "Review"], ["speak", "💬", "Speak"], ["phrasebook", "⭐", "Phrases"], ["profile", "👤", "Profile"]].map(([tab, icon, label]) => <button key={tab} style={{ ...styles.navBtn, ...(currentUser.activeTab === tab ? styles.navActive : {}) }} onClick={() => updateUser({ activeTab: tab })}><div style={{ fontSize: 20 }}>{icon}</div>{label}</button>)}</div></div>;
 
