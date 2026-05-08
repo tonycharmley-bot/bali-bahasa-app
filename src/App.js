@@ -576,7 +576,7 @@ export default function App() {
       const activeProgress = activeMission && currentUser.currentFlow === "mission" ? currentUser.missionProgress?.[activeMission.id] || { count: 0, completed: false } : null;
       const missionPatch = activeProgress ? { missionProgress: { ...(currentUser.missionProgress || {}), [activeMission.id]: { count: activeProgress.count + 1, completed: activeProgress.count + 1 >= activeMission.goal } } } : {};
       updateUser({ ...statsPatch, ...missionPatch, score: currentUser.score + gained, coins: currentUser.coins + coinsGained, xp: currentUser.xp + 25, streak: newStreak, bestStreak: Math.max(currentUser.bestStreak, newStreak), completedToday: currentUser.completedToday + 1, answeredIds: [...currentUser.answeredIds, current.id], wrongIds: currentUser.wrongIds.filter((id) => id !== current.id), feedback: { ok: true, text: `Correct · +${gained} XP · +${coinsGained} coins`, explanation: current.explanation }, input: "", builderAnswer: [], lastCorrectAnswer: current.answers[0] });
-      setTimeout(nextDrill, 900);
+      setTimeout(nextDrill, 2200);
     } else {
       playSound("wrong");
       updateUser({ ...statsPatch, hearts: isPhrasebook ? currentUser.hearts : Math.max(currentUser.hearts - 1, 0), streak: 0, wrongIds: currentUser.wrongIds.includes(current.id) ? currentUser.wrongIds : [...currentUser.wrongIds, current.id], feedback: { ok: false, text: "Not quite", explanation: `Correct: ${current.answers[0]}` }, lastCorrectAnswer: current.answers[0] });
