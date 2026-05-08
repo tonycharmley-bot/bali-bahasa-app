@@ -665,7 +665,7 @@ export default function App() {
 
   const screen = currentUser.activeTab === "train" ? <TrainingCard /> : currentUser.activeTab === "review" ? <Review /> : currentUser.activeTab === "speak" ? <Speak /> : currentUser.activeTab === "phrasebook" ? <Phrasebook /> : currentUser.activeTab === "profile" ? <Profile /> : <Home />;
 
-  const BottomNav = () => <div style={styles.bottomNav}><div style={styles.navInner}>{[["learn", "🏠", "Learn"], ["review", "🔁", "Review"], ["speak", "💬", "Speak"], ["phrasebook", "⭐", "Phrases"], ["profile", "👤", "Profile"]].map(([tab, icon, label]) => <button key={tab} style={{ ...styles.navBtn, ...(currentUser.activeTab === tab ? styles.navActive : {}) }} onClick={() => updateUser({ activeTab: tab })}><div style={{ fontSize: 20 }}>{icon}</div>{label}</button>)}</div></div>;
+  <div style={styles.bottomNav}><div style={styles.navInner}>{[["learn", "🏠", "Learn"], ["review", "🔁", "Review"], ["speak", "💬", "Speak"], ["phrasebook", "⭐", "Phrases"], ["profile", "👤", "Profile"]].map(([tab, icon, label]) => <button key={tab} style={{ ...styles.navBtn, ...(currentUser.activeTab === tab ? styles.navActive : {}) }} onClick={() => updateUser({ activeTab: tab })}><div style={{ fontSize: 20 }}>{icon}</div>{label}</button>)}</div></div>;
 
   return <div style={styles.page}><div style={styles.wrap}>{screen}{footer}</div><BottomNav /></div>;
 }
