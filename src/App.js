@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import baliBahasaDataset from "./dataset";
 
-const APP_VERSION = "1.6.0";
-const APP_VERSION_LABEL = "Version 1.6 — Fast Conversation System";
-const STORAGE_KEY = "bali-bahasa-profiles-v10";
+const APP_VERSION = "2.0.0";
+const APP_VERSION_LABEL = "Version 2.0 — Mobile First Conversation Trainer";
+const STORAGE_KEY = "bali-bahasa-profiles-v11";
 
 function normalize(text) {
   return String(text || "")
@@ -27,8 +27,7 @@ function expandVariants(answer) {
 
 function isAnswerCorrect(submitted, answers) {
   const value = normalize(submitted);
-  const acceptable = answers.flatMap(expandVariants);
-  return acceptable.some((answer) => answer === value);
+  return answers.flatMap(expandVariants).some((answer) => answer === value);
 }
 
 function shuffleArray(items) {
@@ -51,18 +50,17 @@ function addDays(days) {
 }
 
 function getLevelData(score) {
-  if (score >= 1200) return { level: 6, title: "Confident Local Chat" };
-  if (score >= 850) return { level: 5, title: "Bali Conversation Flow" };
-  if (score >= 550) return { level: 4, title: "Local Chat Mode" };
-  if (score >= 300) return { level: 3, title: "Conversation Builder" };
-  if (score >= 120) return { level: 2, title: "Pattern Starter" };
-  return { level: 1, title: "First Steps" };
+  if (score >= 1200) return { level: 6, title: "Confident Local Chat", next: 1600 };
+  if (score >= 850) return { level: 5, title: "Bali Conversation Flow", next: 1200 };
+  if (score >= 550) return { level: 4, title: "Local Chat Mode", next: 850 };
+  if (score >= 300) return { level: 3, title: "Conversation Builder", next: 550 };
+  if (score >= 120) return { level: 2, title: "Pattern Starter", next: 300 };
+  return { level: 1, title: "First Steps", next: 120 };
 }
 
 function flattenPhrases(dataset) {
-  const topics = dataset?.topics || [];
   const all = [];
-  topics.forEach((topic) => {
+  (dataset?.topics || []).forEach((topic) => {
     (topic.phrases || []).forEach((phrase) => {
       all.push({ ...phrase, topicId: topic.id, category: topic.label, topicPriority: topic.priority || 99 });
     });
@@ -71,9 +69,8 @@ function flattenPhrases(dataset) {
 }
 
 function flattenWords(dataset) {
-  const topics = dataset?.topics || [];
   const all = [];
-  topics.forEach((topic) => {
+  (dataset?.topics || []).forEach((topic) => {
     (topic.coreWords || []).forEach((word) => {
       all.push({ ...word, topicId: topic.id, category: topic.label, topicPriority: topic.priority || 99 });
     });
@@ -82,9 +79,8 @@ function flattenWords(dataset) {
 }
 
 function flattenConversationChains(dataset) {
-  const topics = dataset?.topics || [];
   const chains = [];
-  topics.forEach((topic) => {
+  (dataset?.topics || []).forEach((topic) => {
     (topic.conversationChains || []).forEach((chain) => {
       chains.push({ ...chain, topicId: topic.id, category: topic.label, topicPriority: topic.priority || 99 });
     });
@@ -92,87 +88,125 @@ function flattenConversationChains(dataset) {
   return chains;
 }
 
-function createDistractors(correctPhrase, allPhrases, count = 3) {
+function createDistractors(correctPhrase, allPhrases, count = 3, field = "idn") {
   const sameTopic = allPhrases.filter((item) => item.id !== correctPhrase.id && item.topicId === correctPhrase.topicId);
   const otherTopics = allPhrases.filter((item) => item.id !== correctPhrase.id && item.topicId !== correctPhrase.topicId);
-  return shuffleArray([...sameTopic, ...otherTopics]).slice(0, count).map((item) => item.idn);
+  return shuffleArray([...sameTopic, ...otherTopics]).slice(0, count).map((item) => item[field]);
 }
 
 function createTranslationDrills(dataset) {
   const phrases = flattenPhrases(dataset);
-  return phrases.map((phrase, index) => {
-    const distractors = createDistractors(phrase, phrases, 3);
-    return {
-      id: `p-${phrase.id || index}`,
-      sourceId: phrase.id,
-      type: "translate",
-      category: phrase.category,
-      topicId: phrase.topicId,
-      scenario: phrase.category,
-      direction: "Translate into Bahasa Indonesia",
-      prompt: phrase.eng,
-      answers: [phrase.idn],
-      options: shuffleArray([phrase.idn, ...distractors]),
-      tip: phrase.pattern || "Focus on the phrase pattern.",
-      explanation: `${phrase.idn} = ${phrase.eng}`,
-      breakdown: phrase.breakdown || [],
-      level: phrase.level || 1,
-      tags: phrase.tags || []
-    };
-  });
+  return phrases.map((phrase, index) => ({
+    id: `p-${phrase.id || index}`,
+    sourceId: phrase.id,
+    type: "typing",
+    skill: "recall",
+    category: phrase.category,
+    topicId: phrase.topicId,
+    scenario: phrase.category,
+    instruction: "Say this in Bahasa Indonesia",
+    prompt: phrase.eng,
+    answers: [phrase.idn],
+    options: shuffleArray([phrase.idn, ...createDistractors(phrase, phrases)]),
+    tip: phrase.pattern || "Focus on the phrase pattern.",
+    explanation: `${phrase.idn} = ${phrase.eng}`,
+    breakdown: phrase.breakdown || [],
+    level: phrase.level || 1,
+    tags: phrase.tags || []
+  }));
+}
+
+function createChoiceDrills(dataset) {
+  const phrases = flattenPhrases(dataset);
+  return phrases.map((phrase, index) => ({
+    id: `mc-${phrase.id || index}`,
+    sourceId: phrase.id,
+    type: "choice",
+    skill: "recognition",
+    category: phrase.category,
+    topicId: phrase.topicId,
+    scenario: phrase.category,
+    instruction: "Choose the Bahasa Indonesia phrase",
+    prompt: phrase.eng,
+    answers: [phrase.idn],
+    options: shuffleArray([phrase.idn, ...createDistractors(phrase, phrases)]),
+    tip: phrase.pattern || "Choose the matching phrase.",
+    explanation: `${phrase.idn} = ${phrase.eng}`,
+    breakdown: phrase.breakdown || [],
+    level: phrase.level || 1,
+    tags: phrase.tags || []
+  }));
 }
 
 function createListeningDrills(dataset) {
   const phrases = flattenPhrases(dataset);
-  return phrases.map((phrase, index) => {
-    const distractors = shuffleArray(phrases.filter((item) => item.id !== phrase.id)).slice(0, 3).map((item) => item.eng);
-    return {
-      id: `l-${phrase.id || index}`,
-      sourceId: phrase.id,
-      type: "listening",
-      category: phrase.category,
-      topicId: phrase.topicId,
-      scenario: phrase.category,
-      direction: "Choose the correct meaning",
-      prompt: phrase.idn,
-      answers: [phrase.eng],
-      options: shuffleArray([phrase.eng, ...distractors]),
-      tip: "Listen and choose the English meaning.",
-      explanation: `${phrase.idn} = ${phrase.eng}`,
-      breakdown: phrase.breakdown || [],
-      level: phrase.level || 1,
-      tags: phrase.tags || []
-    };
-  });
+  return phrases.map((phrase, index) => ({
+    id: `l-${phrase.id || index}`,
+    sourceId: phrase.id,
+    type: "listening",
+    skill: "listening",
+    category: phrase.category,
+    topicId: phrase.topicId,
+    scenario: phrase.category,
+    instruction: "Listen and choose the meaning",
+    prompt: phrase.idn,
+    answers: [phrase.eng],
+    options: shuffleArray([phrase.eng, ...createDistractors(phrase, phrases, 3, "eng")]),
+    tip: "Listen for the key words.",
+    explanation: `${phrase.idn} = ${phrase.eng}`,
+    breakdown: phrase.breakdown || [],
+    level: phrase.level || 1,
+    tags: phrase.tags || []
+  }));
 }
 
 function createWordDrills(dataset) {
   const words = flattenWords(dataset);
-  return words.map((word, index) => {
-    const distractors = shuffleArray(words.filter((item) => item.id !== word.id)).slice(0, 3).map((item) => item.eng);
-    return {
-      id: `w-${word.id || index}`,
-      sourceId: word.id,
-      type: "word",
-      category: word.category,
-      topicId: word.topicId,
-      scenario: word.category,
-      direction: "Choose the correct meaning",
-      prompt: word.idn,
-      answers: [word.eng],
-      options: shuffleArray([word.eng, ...distractors]),
-      tip: `${word.type || "word"} · ${word.tags?.join(", ") || "core vocabulary"}`,
-      explanation: `${word.idn} = ${word.eng}`,
-      breakdown: [[word.idn, word.eng]],
-      level: word.level || 1,
-      tags: word.tags || []
-    };
-  });
+  return words.map((word, index) => ({
+    id: `w-${word.id || index}`,
+    sourceId: word.id,
+    type: "word",
+    skill: "vocab",
+    category: word.category,
+    topicId: word.topicId,
+    scenario: word.category,
+    instruction: "Choose the meaning",
+    prompt: word.idn,
+    answers: [word.eng],
+    options: shuffleArray([word.eng, ...shuffleArray(words.filter((item) => item.id !== word.id)).slice(0, 3).map((item) => item.eng)]),
+    tip: `${word.type || "word"} · ${word.tags?.join(", ") || "core vocabulary"}`,
+    explanation: `${word.idn} = ${word.eng}`,
+    breakdown: [[word.idn, word.eng]],
+    level: word.level || 1,
+    tags: word.tags || []
+  }));
+}
+
+function createBuilderDrills(dataset) {
+  const phrases = flattenPhrases(dataset).filter((phrase) => phrase.idn.split(" ").length >= 3 && phrase.idn.split(" ").length <= 7);
+  return phrases.map((phrase, index) => ({
+    id: `b-${phrase.id || index}`,
+    sourceId: phrase.id,
+    type: "builder",
+    skill: "structure",
+    category: phrase.category,
+    topicId: phrase.topicId,
+    scenario: phrase.category,
+    instruction: "Build the sentence",
+    prompt: phrase.eng,
+    answers: [phrase.idn],
+    tiles: shuffleArray(phrase.idn.split(" ")),
+    tip: phrase.pattern || "Tap words in order.",
+    explanation: `${phrase.idn} = ${phrase.eng}`,
+    breakdown: phrase.breakdown || [],
+    level: phrase.level || 1,
+    tags: phrase.tags || []
+  }));
 }
 
 function createConversationDrills(dataset) {
   const chains = flattenConversationChains(dataset);
-  const userTurns = [];
+  const turns = [];
   chains.forEach((chain) => {
     (chain.turns || []).forEach((turn, index) => {
       if (turn.speaker !== "user") return;
@@ -180,14 +214,15 @@ function createConversationDrills(dataset) {
       const otherUserTurns = chains.flatMap((otherChain) =>
         (otherChain.turns || []).filter((item) => item.speaker === "user" && item.idn !== turn.idn).map((item) => item.idn)
       );
-      userTurns.push({
+      turns.push({
         id: `c-${chain.id}-${index}`,
         sourceId: chain.id,
         type: "conversation",
+        skill: "conversation",
         category: chain.category,
         topicId: chain.topicId,
         scenario: chain.title || chain.category,
-        direction: "Choose the best reply",
+        instruction: "Choose the best reply",
         theySay: previousTurn?.idn || chain.title || "Conversation",
         prompt: previousTurn ? previousTurn.idn : chain.title,
         answers: [turn.idn],
@@ -200,129 +235,92 @@ function createConversationDrills(dataset) {
       });
     });
   });
-  return userTurns;
-}
-
-function createBuilderDrills(dataset) {
-  const phrases = flattenPhrases(dataset).filter((phrase) => phrase.idn.split(" ").length >= 3 && phrase.idn.split(" ").length <= 7);
-  return phrases.map((phrase, index) => {
-    const words = phrase.idn.split(" ");
-    return {
-      id: `b-${phrase.id || index}`,
-      sourceId: phrase.id,
-      type: "builder",
-      category: phrase.category,
-      topicId: phrase.topicId,
-      scenario: phrase.category,
-      direction: "Build the sentence in Bahasa Indonesia",
-      prompt: phrase.eng,
-      answers: [phrase.idn],
-      tiles: shuffleArray(words),
-      tip: phrase.pattern || "Arrange the words in the right order.",
-      explanation: `${phrase.idn} = ${phrase.eng}`,
-      breakdown: phrase.breakdown || [],
-      level: phrase.level || 1,
-      tags: phrase.tags || []
-    };
-  });
+  return turns;
 }
 
 function createPhrasebookDrills(phrasebook) {
   const items = (phrasebook || []).filter((item) => item.idn && item.eng);
-  const translate = items.map((item) => {
-    const others = shuffleArray(items.filter((other) => other.id !== item.id)).slice(0, 3);
-    return {
-      id: `pb-t-${item.id}`,
-      sourceId: item.id,
-      type: "phrasebook",
-      category: "My Phrasebook",
-      topicId: "phrasebook",
-      scenario: "Personal phrasebook",
-      direction: "Translate into Bahasa Indonesia",
-      prompt: item.eng,
-      answers: [item.idn],
-      options: shuffleArray([item.idn, ...others.map((other) => other.idn)]),
-      tip: item.note || "Personal phrase saved by you.",
-      explanation: `${item.idn} = ${item.eng}`,
-      breakdown: [[item.idn, item.eng]],
-      level: 1,
-      tags: ["phrasebook", item.kind || "phrase"]
-    };
-  });
-  const listening = items.map((item) => {
-    const others = shuffleArray(items.filter((other) => other.id !== item.id)).slice(0, 3);
-    return {
-      id: `pb-l-${item.id}`,
-      sourceId: item.id,
-      type: "phrasebook_listening",
-      category: "My Phrasebook",
-      topicId: "phrasebook",
-      scenario: "Personal phrasebook listening",
-      direction: "Choose the correct meaning",
-      prompt: item.idn,
-      answers: [item.eng],
-      options: shuffleArray([item.eng, ...others.map((other) => other.eng)]),
-      tip: item.note || "Listen and choose the meaning.",
-      explanation: `${item.idn} = ${item.eng}`,
-      breakdown: [[item.idn, item.eng]],
-      level: 1,
-      tags: ["phrasebook", item.kind || "phrase"]
-    };
-  });
-  const builder = items
-    .filter((item) => item.idn.split(" ").length >= 2 && item.idn.split(" ").length <= 8)
-    .map((item) => ({
-      id: `pb-b-${item.id}`,
-      sourceId: item.id,
-      type: "phrasebook_builder",
-      category: "My Phrasebook",
-      topicId: "phrasebook",
-      scenario: "Personal phrasebook builder",
-      direction: "Build the sentence in Bahasa Indonesia",
-      prompt: item.eng,
-      answers: [item.idn],
-      tiles: shuffleArray(item.idn.split(" ")),
-      tip: item.note || "Build your saved phrase.",
-      explanation: `${item.idn} = ${item.eng}`,
-      breakdown: [[item.idn, item.eng]],
-      level: 1,
-      tags: ["phrasebook", "builder"]
-    }));
-  return { translate, listening, builder, all: [...translate, ...listening, ...builder] };
+  const typing = items.map((item) => ({
+    id: `pb-t-${item.id}`,
+    sourceId: item.id,
+    type: "typing",
+    skill: "phrasebook",
+    category: "My Phrasebook",
+    topicId: "phrasebook",
+    scenario: "Personal phrasebook",
+    instruction: "Say this in Bahasa Indonesia",
+    prompt: item.eng,
+    answers: [item.idn],
+    options: shuffleArray([item.idn, ...shuffleArray(items.filter((other) => other.id !== item.id)).slice(0, 3).map((other) => other.idn)]),
+    tip: item.note || "Personal phrase saved by you.",
+    explanation: `${item.idn} = ${item.eng}`,
+    breakdown: [[item.idn, item.eng]],
+    level: 1,
+    tags: ["phrasebook", item.kind || "phrase"]
+  }));
+  const listening = items.map((item) => ({
+    id: `pb-l-${item.id}`,
+    sourceId: item.id,
+    type: "listening",
+    skill: "phrasebook_listening",
+    category: "My Phrasebook",
+    topicId: "phrasebook",
+    scenario: "Personal phrasebook listening",
+    instruction: "Listen and choose the meaning",
+    prompt: item.idn,
+    answers: [item.eng],
+    options: shuffleArray([item.eng, ...shuffleArray(items.filter((other) => other.id !== item.id)).slice(0, 3).map((other) => other.eng)]),
+    tip: item.note || "Listen and choose the meaning.",
+    explanation: `${item.idn} = ${item.eng}`,
+    breakdown: [[item.idn, item.eng]],
+    level: 1,
+    tags: ["phrasebook", item.kind || "phrase"]
+  }));
+  const builder = items.filter((item) => item.idn.split(" ").length >= 2).map((item) => ({
+    id: `pb-b-${item.id}`,
+    sourceId: item.id,
+    type: "builder",
+    skill: "phrasebook_builder",
+    category: "My Phrasebook",
+    topicId: "phrasebook",
+    scenario: "Personal phrasebook builder",
+    instruction: "Build your saved phrase",
+    prompt: item.eng,
+    answers: [item.idn],
+    tiles: shuffleArray(item.idn.split(" ")),
+    tip: item.note || "Build your saved phrase.",
+    explanation: `${item.idn} = ${item.eng}`,
+    breakdown: [[item.idn, item.eng]],
+    level: 1,
+    tags: ["phrasebook", "builder"]
+  }));
+  return { typing, listening, builder, all: [...typing, ...listening, ...builder] };
 }
 
 function buildBaseDrills(dataset) {
-  const translate = createTranslationDrills(dataset);
-  const listening = createListeningDrills(dataset);
-  const words = createWordDrills(dataset);
-  const conversation = createConversationDrills(dataset);
-  const builder = createBuilderDrills(dataset);
-  return { translate, listening, words, conversation, builder, all: [...translate, ...listening, ...words, ...builder] };
+  return {
+    typing: createTranslationDrills(dataset),
+    choice: createChoiceDrills(dataset),
+    listening: createListeningDrills(dataset),
+    words: createWordDrills(dataset),
+    builder: createBuilderDrills(dataset),
+    conversation: createConversationDrills(dataset)
+  };
 }
 
 const baseContent = buildBaseDrills(baliBahasaDataset);
+
 const missions = [
-  { id: "mission-warung", label: "Order Food", topicId: "warung_food", goal: 5, description: "Practise ordering, spice, drinks, and paying." },
-  { id: "mission-driver", label: "Talk to Driver", topicId: "transport_driver", goal: 5, description: "Practise pickup, location, time, and traffic." },
-  { id: "mission-villa", label: "Villa Staff", topicId: "villa_staff", goal: 5, description: "Practise cleaning, AC, keys, and maintenance." },
-  { id: "mission-smalltalk", label: "Small Talk", topicId: "social_smalltalk", goal: 5, description: "Practise friendly local chat." }
+  { id: "mission-warung", label: "Order Food", topicId: "warung_food", goal: 5, description: "Ordering, spice, drinks, and paying." },
+  { id: "mission-driver", label: "Talk to Driver", topicId: "transport_driver", goal: 5, description: "Pickup, location, time, and traffic." },
+  { id: "mission-villa", label: "Villa Staff", topicId: "villa_staff", goal: 5, description: "Cleaning, AC, keys, and maintenance." },
+  { id: "mission-smalltalk", label: "Small Talk", topicId: "social_smalltalk", goal: 5, description: "Friendly local chat." }
 ];
 
 const topicList = [
   { id: "all", label: "All" },
   { id: "phrasebook", label: "My Phrasebook" },
   ...(baliBahasaDataset?.topics || []).map((topic) => ({ id: topic.id, label: topic.label }))
-];
-
-const achievements = [
-  { key: "firstWin", label: "First Win", desc: "Get your first correct answer" },
-  { key: "streak5", label: "Hot Streak", desc: "Reach a streak of 5" },
-  { key: "score100", label: "Century", desc: "Score 100 points" },
-  { key: "level3", label: "Conversational Spark", desc: "Reach level 3" },
-  { key: "dailyGoal", label: "Daily Discipline", desc: "Finish your daily goal" },
-  { key: "phraseCollector", label: "Phrase Collector", desc: "Save 5 custom phrasebook items" },
-  { key: "coin100", label: "Coin Hunter", desc: "Earn 100 coins" },
-  { key: "missionComplete", label: "Mission Ready", desc: "Complete a real Bali mission" }
 ];
 
 function getRandomDrillId(items) {
@@ -358,9 +356,12 @@ function chooseAdaptiveDrill(items, stats, excludeId, schedule = {}, onlyDue = f
 function blankUserState() {
   return {
     started: false,
-    currentDrillId: getRandomDrillId(baseContent.translate),
+    activeTab: "learn",
+    currentDrillId: getRandomDrillId(baseContent.typing),
+    currentFlow: "smart",
     shuffledOptions: {},
     input: "",
+    builderAnswer: [],
     score: 0,
     coins: 0,
     streak: 0,
@@ -371,11 +372,9 @@ function blankUserState() {
     answeredIds: [],
     unlocked: [],
     mode: "all",
-    playMode: "typing",
     dailyGoal: 10,
     completedToday: 0,
     wrongIds: [],
-    showReviewOnly: false,
     comboMultiplier: 1,
     drillStats: {},
     reviewSchedule: {},
@@ -384,39 +383,41 @@ function blankUserState() {
     muted: false,
     lastCorrectAnswer: "",
     lastLevel: 1,
-    builderAnswer: [],
     activeMissionId: "",
-    missionProgress: {},
-    placementDone: false
+    missionProgress: {}
   };
 }
 
 const styles = {
-  page: { minHeight: "100vh", background: "linear-gradient(135deg, #06111f 0%, #0f172a 45%, #062a27 100%)", color: "#fff", fontFamily: "Inter, Arial, sans-serif", padding: 16, boxSizing: "border-box" },
-  wrap: { maxWidth: 520, margin: "0 auto", display: "flex", flexDirection: "column", gap: 16, paddingBottom: 28 },
-  card: { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 24, padding: 16, boxShadow: "0 18px 50px rgba(0,0,0,0.25)", backdropFilter: "blur(12px)" },
-  pill: { display: "inline-flex", alignItems: "center", padding: "6px 12px", borderRadius: 999, background: "rgba(16,185,129,0.12)", color: "#9af3d4", border: "1px solid rgba(16,185,129,0.28)", fontSize: 13, fontWeight: 700 },
-  heroTitle: { fontSize: 34, lineHeight: 1.08, margin: "8px 0 0", fontWeight: 800 },
-  heroText: { color: "#b8c5d7", lineHeight: 1.5, margin: 0 },
-  row: { display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between" },
-  statGrid: { display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10 },
-  smallStat: { background: "rgba(15,23,42,0.75)", borderRadius: 18, padding: 12, textAlign: "center", border: "1px solid rgba(255,255,255,0.06)" },
-  button: { minHeight: 46, borderRadius: 18, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(255,255,255,0.05)", color: "#fff", padding: "0 14px", cursor: "pointer", fontWeight: 700 },
-  buttonPrimary: { minHeight: 48, borderRadius: 18, border: "none", background: "#10b981", color: "white", padding: "0 16px", cursor: "pointer", fontWeight: 800 },
-  buttonActive: { background: "rgba(34,211,238,0.18)", border: "1px solid rgba(103,232,249,0.28)", color: "#d7fbff" },
-  buttonWarn: { background: "rgba(245,158,11,0.14)", border: "1px solid rgba(245,158,11,0.22)", color: "#fde68a" },
-  input: { width: "100%", minHeight: 50, background: "rgba(15,23,42,0.82)", border: "1px solid rgba(255,255,255,0.12)", color: "white", borderRadius: 18, padding: "0 16px", fontSize: 16, outline: "none", boxSizing: "border-box", minWidth: 0 },
-  textarea: { width: "100%", minHeight: 86, background: "rgba(15,23,42,0.82)", border: "1px solid rgba(255,255,255,0.12)", color: "white", borderRadius: 18, padding: 14, fontSize: 16, outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.45 },
-  progressTrack: { width: "100%", height: 9, background: "rgba(255,255,255,0.08)", borderRadius: 999, overflow: "hidden" },
-  badge: { display: "inline-flex", alignItems: "center", padding: "6px 10px", borderRadius: 999, background: "rgba(34,211,238,0.14)", color: "#c8fbff", border: "1px solid rgba(34,211,238,0.22)", fontSize: 12, fontWeight: 700 },
-  answerButton: { textAlign: "left", minHeight: 50, padding: "12px 14px", borderRadius: 18, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(15,23,42,0.82)", color: "white", cursor: "pointer", fontWeight: 600, lineHeight: 1.35 },
+  page: { minHeight: "100vh", background: "linear-gradient(135deg,#06111f 0%,#0f172a 55%,#062a27 100%)", color: "#fff", fontFamily: "Inter, Arial, sans-serif", padding: "14px 14px 92px", boxSizing: "border-box" },
+  wrap: { maxWidth: 520, margin: "0 auto", display: "flex", flexDirection: "column", gap: 14 },
+  card: { background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 24, padding: 16, boxShadow: "0 18px 50px rgba(0,0,0,0.24)", backdropFilter: "blur(12px)" },
+  hero: { background: "linear-gradient(135deg,rgba(16,185,129,.22),rgba(34,211,238,.12))", border: "1px solid rgba(134,239,172,.25)", borderRadius: 28, padding: 18 },
+  title: { fontSize: 31, lineHeight: 1.05, margin: "8px 0", fontWeight: 900 },
+  text: { color: "#b8c5d7", lineHeight: 1.5, margin: 0 },
+  pill: { display: "inline-flex", alignItems: "center", padding: "6px 12px", borderRadius: 999, background: "rgba(16,185,129,.12)", color: "#9af3d4", border: "1px solid rgba(16,185,129,.28)", fontSize: 13, fontWeight: 800 },
+  row: { display: "flex", gap: 10, alignItems: "center", justifyContent: "space-between" },
+  grid3: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 },
+  stat: { background: "rgba(15,23,42,.72)", borderRadius: 18, padding: 12, textAlign: "center", border: "1px solid rgba(255,255,255,.07)" },
+  button: { minHeight: 46, borderRadius: 18, border: "1px solid rgba(255,255,255,.12)", background: "rgba(255,255,255,.055)", color: "#fff", padding: "0 14px", cursor: "pointer", fontWeight: 800 },
+  primary: { minHeight: 52, borderRadius: 18, border: "none", background: "#10b981", color: "white", padding: "0 16px", cursor: "pointer", fontWeight: 900, fontSize: 16 },
+  active: { background: "rgba(34,211,238,.18)", border: "1px solid rgba(103,232,249,.28)", color: "#d7fbff" },
+  warn: { background: "rgba(245,158,11,.14)", border: "1px solid rgba(245,158,11,.22)", color: "#fde68a" },
+  input: { width: "100%", minHeight: 52, background: "rgba(15,23,42,.82)", border: "1px solid rgba(255,255,255,.14)", color: "white", borderRadius: 18, padding: "0 16px", fontSize: 16, outline: "none", boxSizing: "border-box" },
+  textarea: { width: "100%", minHeight: 86, background: "rgba(15,23,42,.82)", border: "1px solid rgba(255,255,255,.14)", color: "white", borderRadius: 18, padding: 14, fontSize: 16, outline: "none", boxSizing: "border-box", resize: "vertical", lineHeight: 1.45 },
+  progress: { width: "100%", height: 9, background: "rgba(255,255,255,.08)", borderRadius: 999, overflow: "hidden" },
+  badge: { display: "inline-flex", alignItems: "center", padding: "6px 10px", borderRadius: 999, background: "rgba(34,211,238,.14)", color: "#c8fbff", border: "1px solid rgba(34,211,238,.22)", fontSize: 12, fontWeight: 800 },
+  choice: { textAlign: "left", minHeight: 54, padding: "12px 14px", borderRadius: 18, border: "1px solid rgba(255,255,255,.10)", background: "rgba(15,23,42,.82)", color: "white", cursor: "pointer", fontWeight: 700, lineHeight: 1.35 },
   muted: { color: "#94a3b8" },
-  sectionTitle: { fontSize: 18, fontWeight: 800, margin: 0 },
-  feedbackGood: { borderRadius: 18, padding: 14, border: "1px solid rgba(52,211,153,0.24)", background: "rgba(16,185,129,0.12)" },
-  feedbackBad: { borderRadius: 18, padding: 14, border: "1px solid rgba(251,113,133,0.24)", background: "rgba(244,63,94,0.12)" },
-  achievementRow: { borderRadius: 18, padding: 12, border: "1px solid rgba(255,255,255,0.10)", background: "rgba(15,23,42,0.68)" },
-  profileButton: { minHeight: 54, borderRadius: 18, border: "1px solid rgba(255,255,255,0.12)", background: "rgba(15,23,42,0.82)", color: "white", padding: "10px 14px", cursor: "pointer", fontWeight: 700, textAlign: "left" },
-  footer: { textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.45)", padding: "8px 0 18px" }
+  sectionTitle: { fontSize: 18, fontWeight: 900, margin: 0 },
+  good: { borderRadius: 18, padding: 14, border: "1px solid rgba(52,211,153,.24)", background: "rgba(16,185,129,.12)" },
+  bad: { borderRadius: 18, padding: 14, border: "1px solid rgba(251,113,133,.24)", background: "rgba(244,63,94,.12)" },
+  item: { borderRadius: 18, padding: 12, border: "1px solid rgba(255,255,255,.10)", background: "rgba(15,23,42,.68)" },
+  bottomNav: { position: "fixed", left: 0, right: 0, bottom: 0, background: "rgba(2,6,23,.92)", backdropFilter: "blur(14px)", borderTop: "1px solid rgba(255,255,255,.10)", padding: "8px 8px 12px", zIndex: 20 },
+  navInner: { maxWidth: 520, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 6 },
+  navBtn: { border: "none", borderRadius: 16, minHeight: 52, background: "transparent", color: "#94a3b8", fontWeight: 800, fontSize: 11, cursor: "pointer" },
+  navActive: { background: "rgba(16,185,129,.16)", color: "#a7f3d0" },
+  footer: { textAlign: "center", fontSize: 12, color: "rgba(255,255,255,.45)", padding: "8px 0 18px" }
 };
 
 export default function App() {
@@ -432,19 +433,17 @@ export default function App() {
 
   const currentUser = profiles[activeProfile] || blankUserState();
   const phrasebookContent = useMemo(() => createPhrasebookDrills(currentUser.phrasebook || []), [currentUser.phrasebook]);
-
-  const combinedContent = useMemo(() => ({
-    translate: [...baseContent.translate, ...phrasebookContent.translate],
+  const combined = useMemo(() => ({
+    typing: [...baseContent.typing, ...phrasebookContent.typing],
+    choice: baseContent.choice,
     listening: [...baseContent.listening, ...phrasebookContent.listening],
     words: baseContent.words,
-    conversation: baseContent.conversation,
     builder: [...baseContent.builder, ...phrasebookContent.builder],
+    conversation: baseContent.conversation,
     phrasebook: phrasebookContent.all
   }), [phrasebookContent]);
 
-  const updateUser = (patch) => {
-    setProfiles((prev) => ({ ...prev, [activeProfile]: { ...blankUserState(), ...(prev[activeProfile] || {}), ...patch } }));
-  };
+  const updateUser = (patch) => setProfiles((prev) => ({ ...prev, [activeProfile]: { ...blankUserState(), ...(prev[activeProfile] || {}), ...patch } }));
 
   useEffect(() => {
     try {
@@ -454,169 +453,86 @@ export default function App() {
       if (data.profiles) setProfiles(data.profiles);
       if (data.activeProfile) setActiveProfile(data.activeProfile);
       if (typeof data.showProfileManager === "boolean") setShowProfileManager(data.showProfileManager);
-    } catch (error) {
-      console.error("Could not load saved profile data", error);
-    }
+    } catch (e) { console.error(e); }
   }, []);
 
+  useEffect(() => { window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ profiles, activeProfile, showProfileManager })); }, [profiles, activeProfile, showProfileManager]);
+  useEffect(() => { const SR = window.SpeechRecognition || window.webkitSpeechRecognition; setVoiceSupported(Boolean(SR)); }, []);
+  useEffect(() => { if ("serviceWorker" in navigator) navigator.serviceWorker.register("/sw.js").catch(() => {}); }, []);
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify({ profiles, activeProfile, showProfileManager }));
-  }, [profiles, activeProfile, showProfileManager]);
-
-  useEffect(() => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    setVoiceSupported(Boolean(SpeechRecognition));
-  }, []);
-
-  useEffect(() => {
-    if ("serviceWorker" in navigator) {
-      navigator.serviceWorker.register("/sw.js").catch((error) => console.error("Service worker registration failed", error));
-    }
-  }, []);
-
-  useEffect(() => {
-    const promptHandler = (event) => {
-      event.preventDefault();
-      setDeferredPrompt(event);
-      setInstallReady(true);
-    };
-    const installedHandler = () => {
-      setIsInstalled(true);
-      setInstallReady(false);
-      setDeferredPrompt(null);
-    };
+    const promptHandler = (event) => { event.preventDefault(); setDeferredPrompt(event); setInstallReady(true); };
+    const installedHandler = () => { setIsInstalled(true); setInstallReady(false); setDeferredPrompt(null); };
     if (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches) setIsInstalled(true);
     window.addEventListener("beforeinstallprompt", promptHandler);
     window.addEventListener("appinstalled", installedHandler);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", promptHandler);
-      window.removeEventListener("appinstalled", installedHandler);
-    };
+    return () => { window.removeEventListener("beforeinstallprompt", promptHandler); window.removeEventListener("appinstalled", installedHandler); };
   }, []);
 
-  const dueCount = useMemo(() => {
+  const dueItems = useMemo(() => {
     const today = todayKey();
-    return Object.values(currentUser.reviewSchedule || {}).filter((item) => !item.nextReview || item.nextReview <= today).length;
-  }, [currentUser.reviewSchedule]);
+    return combined.typing.filter((d) => currentUser.reviewSchedule?.[d.id]?.nextReview <= today);
+  }, [combined.typing, currentUser.reviewSchedule]);
 
-  const activeMission = missions.find((mission) => mission.id === currentUser.activeMissionId);
+  const weakItems = useMemo(() => combined.typing.filter((d) => currentUser.wrongIds.includes(d.id)), [combined.typing, currentUser.wrongIds]);
+  const activeMission = missions.find((m) => m.id === currentUser.activeMissionId);
+
+  const smartPool = useMemo(() => {
+    if (dueItems.length) return dueItems;
+    if (weakItems.length >= 3) return weakItems;
+    const mix = [...combined.builder.slice(0, 20), ...combined.typing.slice(0, 40), ...combined.listening.slice(0, 20)];
+    return mix.length ? mix : combined.typing;
+  }, [dueItems, weakItems, combined]);
 
   const pool = useMemo(() => {
-    if (currentUser.playMode === "conversation") return combinedContent.conversation;
-    if (currentUser.playMode === "listening") return combinedContent.listening;
-    if (currentUser.playMode === "words") return combinedContent.words;
-    if (currentUser.playMode === "phrasebook") return combinedContent.phrasebook;
-    if (currentUser.playMode === "builder") return combinedContent.builder;
-    if (currentUser.playMode === "review") return combinedContent.translate.filter((d) => currentUser.reviewSchedule?.[d.id]?.nextReview <= todayKey());
-    if (currentUser.playMode === "weak") return combinedContent.translate.filter((d) => currentUser.wrongIds.includes(d.id));
-    if (currentUser.playMode === "mission" && activeMission) return combinedContent.translate.filter((d) => d.topicId === activeMission.topicId);
-
-    let filtered = combinedContent.translate;
-    if (currentUser.mode === "phrasebook") filtered = combinedContent.phrasebook.filter((d) => d.type === "phrasebook");
+    if (currentUser.currentFlow === "smart") return smartPool;
+    if (currentUser.currentFlow === "review") return dueItems;
+    if (currentUser.currentFlow === "weak") return weakItems;
+    if (currentUser.currentFlow === "choice") return combined.choice;
+    if (currentUser.currentFlow === "listening") return combined.listening;
+    if (currentUser.currentFlow === "words") return combined.words;
+    if (currentUser.currentFlow === "builder") return combined.builder;
+    if (currentUser.currentFlow === "conversation") return combined.conversation;
+    if (currentUser.currentFlow === "phrasebook") return combined.phrasebook;
+    if (currentUser.currentFlow === "mission" && activeMission) return combined.typing.filter((d) => d.topicId === activeMission.topicId);
+    let filtered = combined.typing;
+    if (currentUser.mode === "phrasebook") filtered = combined.phrasebook.filter((d) => d.type === "typing");
     if (currentUser.mode !== "all" && currentUser.mode !== "phrasebook") filtered = filtered.filter((d) => d.topicId === currentUser.mode);
-    if (currentUser.showReviewOnly) filtered = filtered.filter((d) => currentUser.wrongIds.includes(d.id));
-    return filtered.length ? filtered : combinedContent.translate;
-  }, [currentUser.mode, currentUser.showReviewOnly, currentUser.wrongIds, currentUser.playMode, currentUser.reviewSchedule, currentUser.activeMissionId, combinedContent, activeMission]);
+    return filtered.length ? filtered : combined.typing;
+  }, [currentUser.currentFlow, currentUser.mode, smartPool, dueItems, weakItems, combined, activeMission]);
 
-  const current = useMemo(() => pool.find((d) => d.id === currentUser.currentDrillId) || pool[0] || combinedContent.translate[0], [pool, currentUser.currentDrillId, combinedContent.translate]);
-
+  const current = useMemo(() => pool.find((d) => d.id === currentUser.currentDrillId) || pool[0] || combined.typing[0], [pool, currentUser.currentDrillId, combined.typing]);
   const currentOptions = useMemo(() => {
-    const key = `${currentUser.playMode}-${current?.id}`;
+    const key = `${currentUser.currentFlow}-${current?.id}`;
     const saved = currentUser.shuffledOptions?.[key];
     if (saved && saved.length) return saved;
     return shuffleArray(current?.options || []);
-  }, [current, currentUser.playMode, currentUser.shuffledOptions]);
+  }, [current, currentUser.currentFlow, currentUser.shuffledOptions]);
 
   useEffect(() => {
-    if (!current || currentUser.playMode === "phrasebook_edit") return;
-    const key = `${currentUser.playMode}-${current.id}`;
-    if (!currentUser.shuffledOptions?.[key] && current.options) {
-      updateUser({ shuffledOptions: { ...(currentUser.shuffledOptions || {}), [key]: shuffleArray(current.options || []) } });
-    }
-  }, [current?.id, currentUser.playMode]);
+    if (!current || current.type === "builder") return;
+    const key = `${currentUser.currentFlow}-${current.id}`;
+    if (!currentUser.shuffledOptions?.[key] && current.options) updateUser({ shuffledOptions: { ...(currentUser.shuffledOptions || {}), [key]: shuffleArray(current.options || []) } });
+  }, [current?.id, currentUser.currentFlow]);
 
   const levelData = getLevelData(currentUser.score);
-  const progressToNext = Math.min(100, currentUser.xp % 100);
+  const xpProgress = Math.min(100, (currentUser.score / levelData.next) * 100);
 
   const playSound = (type) => {
     if (currentUser.muted) return;
-    try {
-      const audio = new Audio(`/sounds/${type}.mp3`);
-      audio.volume = 0.45;
-      audio.play().catch(() => {});
-    } catch (error) {
-      console.log("Sound unavailable", error);
-    }
+    try { const audio = new Audio(`/sounds/${type}.mp3`); audio.volume = 0.45; audio.play().catch(() => {}); } catch (e) {}
   };
 
-  useEffect(() => {
-    const nextUnlocked = [];
-    if (currentUser.score > 0) nextUnlocked.push("firstWin");
-    if (currentUser.bestStreak >= 5) nextUnlocked.push("streak5");
-    if (currentUser.score >= 100) nextUnlocked.push("score100");
-    if (levelData.level >= 3) nextUnlocked.push("level3");
-    if (currentUser.completedToday >= currentUser.dailyGoal) nextUnlocked.push("dailyGoal");
-    if ((currentUser.phrasebook || []).length >= 5) nextUnlocked.push("phraseCollector");
-    if (currentUser.coins >= 100) nextUnlocked.push("coin100");
-    if (Object.values(currentUser.missionProgress || {}).some((p) => p.completed)) nextUnlocked.push("missionComplete");
-    const nextCombo = Math.min(3, 1 + Math.floor(currentUser.streak / 3) * 0.5);
-    const sameUnlocked = JSON.stringify(currentUser.unlocked) === JSON.stringify(nextUnlocked);
-    const newLevel = levelData.level;
-    if (newLevel > (currentUser.lastLevel || 1)) playSound("level-up");
-    if (!sameUnlocked || currentUser.comboMultiplier !== nextCombo || currentUser.lastLevel !== newLevel) {
-      updateUser({ unlocked: nextUnlocked, comboMultiplier: nextCombo, lastLevel: newLevel });
-    }
-  }, [currentUser.score, currentUser.bestStreak, currentUser.completedToday, currentUser.dailyGoal, currentUser.phrasebook, currentUser.coins, currentUser.streak, currentUser.comboMultiplier, currentUser.unlocked, currentUser.lastLevel, currentUser.missionProgress, levelData.level]);
+  const buttonStyle = (active, warn) => ({ ...styles.button, ...(active ? styles.active : {}), ...(warn ? styles.warn : {}) });
+  const progressFill = (value) => ({ width: `${Math.max(0, Math.min(100, value))}%`, height: "100%", background: "linear-gradient(90deg,#34d399 0%,#10b981 100%)" });
 
-  const buttonStyle = (active, warn) => ({ ...styles.button, ...(active ? styles.buttonActive : {}), ...(warn ? styles.buttonWarn : {}) });
-  const progressFill = (value) => ({ width: `${Math.max(0, Math.min(100, value))}%`, height: "100%", background: "linear-gradient(90deg, #34d399 0%, #10b981 100%)" });
-
-  const switchMode = (playMode) => {
-    const pools = {
-      typing: combinedContent.translate,
-      multiple: combinedContent.translate,
-      listening: combinedContent.listening,
-      words: combinedContent.words,
-      conversation: combinedContent.conversation,
-      phrasebook: combinedContent.phrasebook,
-      builder: combinedContent.builder,
-      review: combinedContent.translate.filter((d) => currentUser.reviewSchedule?.[d.id]?.nextReview <= todayKey()),
-      weak: combinedContent.translate.filter((d) => currentUser.wrongIds.includes(d.id))
-    };
-    const nextPool = pools[playMode] || combinedContent.translate;
-    if (["phrasebook", "review", "weak"].includes(playMode) && !nextPool.length) {
-      const messages = {
-        phrasebook: ["Add phrases first", "My Training uses only your manually added words and phrases."],
-        review: ["No reviews due", "Spaced repetition items will appear here when they are due."],
-        weak: ["No weak phrases yet", "Mistakes you make will appear here for focused review."]
-      };
-      updateUser({ playMode: playMode === "phrasebook" ? "phrasebook_edit" : "typing", feedback: { ok: false, text: messages[playMode][0], explanation: messages[playMode][1] }, input: "" });
+  const setFlow = (flow, explicitPool) => {
+    const nextPool = explicitPool || ({ smart: smartPool, review: dueItems, weak: weakItems, choice: combined.choice, listening: combined.listening, words: combined.words, builder: combined.builder, conversation: combined.conversation, phrasebook: combined.phrasebook }[flow] || combined.typing);
+    if (["review", "weak", "phrasebook"].includes(flow) && !nextPool.length) {
+      const msg = flow === "review" ? ["No reviews due", "Come back after you have practised more phrases."] : flow === "weak" ? ["No weak phrases", "Mistakes will appear here for focused practice."] : ["Add phrases first", "My Training uses only your manually added words and phrases."];
+      updateUser({ activeTab: flow === "phrasebook" ? "phrasebook" : "learn", feedback: { ok: false, text: msg[0], explanation: msg[1] } });
       return;
     }
-    updateUser({ playMode, currentDrillId: getRandomDrillId(nextPool), shuffledOptions: {}, feedback: null, input: "", lastCorrectAnswer: "", builderAnswer: [] });
-  };
-
-  const startMission = (mission) => {
-    const missionPool = combinedContent.translate.filter((d) => d.topicId === mission.topicId);
-    updateUser({ activeMissionId: mission.id, playMode: "mission", currentDrillId: getRandomDrillId(missionPool), feedback: null, input: "", shuffledOptions: {}, builderAnswer: [] });
-  };
-
-  const updateDrillStats = (drillId, wasCorrect) => {
-    const previousStats = currentUser.drillStats || {};
-    const existing = previousStats[drillId] || { seen: 0, correct: 0, wrong: 0, streak: 0 };
-    const currentSchedule = currentUser.reviewSchedule?.[drillId] || { interval: 0, nextReview: todayKey() };
-    const nextInterval = wasCorrect ? Math.min(Math.max(1, currentSchedule.interval || 0) * 2, 30) : 1;
-    const nextReview = wasCorrect ? addDays(nextInterval) : addDays(1);
-    updateUser({
-      drillStats: { ...previousStats, [drillId]: { seen: existing.seen + 1, correct: existing.correct + (wasCorrect ? 1 : 0), wrong: existing.wrong + (wasCorrect ? 0 : 1), streak: wasCorrect ? existing.streak + 1 : 0 } },
-      reviewSchedule: { ...(currentUser.reviewSchedule || {}), [drillId]: { interval: nextInterval, nextReview, lastResult: wasCorrect ? "correct" : "wrong" } }
-    });
-  };
-
-  const moveToNextDrill = () => {
-    const onlyDue = currentUser.playMode === "review";
-    const next = chooseAdaptiveDrill(pool, currentUser.drillStats || {}, current?.id, currentUser.reviewSchedule || {}, onlyDue);
-    updateUser({ currentDrillId: next ? next.id : getRandomDrillId(pool), shuffledOptions: {}, lastCorrectAnswer: "", builderAnswer: [] });
+    updateUser({ currentFlow: flow, activeTab: "train", currentDrillId: getRandomDrillId(nextPool), shuffledOptions: {}, input: "", builderAnswer: [], feedback: null, lastCorrectAnswer: "" });
   };
 
   const speak = (text) => {
@@ -628,178 +544,113 @@ export default function App() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const startVoiceInput = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      updateUser({ feedback: { ok: false, text: "Voice input is not available here", explanation: "Please type your answer manually." } });
-      return;
-    }
-    if (recognitionRef.current) recognitionRef.current.stop();
-    const recognition = new SpeechRecognition();
-    recognition.lang = "id-ID";
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    recognition.onresult = (event) => updateUser({ input: event.results?.[0]?.[0]?.transcript || "" });
-    recognition.onerror = () => updateUser({ feedback: { ok: false, text: "Voice input is not available here", explanation: "Some Android browsers and installed PWAs block speech recognition. Please type your answer manually, or open the app in Chrome and allow microphone permission." } });
-    recognitionRef.current = recognition;
-    recognition.start();
+  const updateDrillStats = (drillId, ok) => {
+    const previousStats = currentUser.drillStats || {};
+    const existing = previousStats[drillId] || { seen: 0, correct: 0, wrong: 0, streak: 0 };
+    const currentSchedule = currentUser.reviewSchedule?.[drillId] || { interval: 0, nextReview: todayKey() };
+    const nextInterval = ok ? Math.min(Math.max(1, currentSchedule.interval || 0) * 2, 30) : 1;
+    const nextReview = ok ? addDays(nextInterval) : addDays(1);
+    return {
+      drillStats: { ...previousStats, [drillId]: { seen: existing.seen + 1, correct: existing.correct + (ok ? 1 : 0), wrong: existing.wrong + (ok ? 0 : 1), streak: ok ? existing.streak + 1 : 0 } },
+      reviewSchedule: { ...(currentUser.reviewSchedule || {}), [drillId]: { interval: nextInterval, nextReview, lastResult: ok ? "correct" : "wrong" } }
+    };
   };
 
-  const updateMissionProgress = () => {
-    if (currentUser.playMode !== "mission" || !activeMission) return {};
-    const prev = currentUser.missionProgress?.[activeMission.id] || { count: 0, completed: false };
-    const nextCount = prev.count + 1;
-    const completed = nextCount >= activeMission.goal;
-    if (completed && !prev.completed) playSound("daily-goal");
-    return { missionProgress: { ...(currentUser.missionProgress || {}), [activeMission.id]: { count: nextCount, completed } } };
+  const nextDrill = () => {
+    const onlyDue = currentUser.currentFlow === "review";
+    const next = chooseAdaptiveDrill(pool, currentUser.drillStats || {}, current?.id, currentUser.reviewSchedule || {}, onlyDue);
+    updateUser({ currentDrillId: next ? next.id : getRandomDrillId(pool), shuffledOptions: {}, input: "", builderAnswer: [], feedback: null, lastCorrectAnswer: "" });
   };
 
-  const checkAnswer = (submitted) => {
-    if (!current || currentUser.hearts <= 0) return;
-    const isCorrect = isAnswerCorrect(submitted, current.answers);
-    const isPhrasebook = current.type?.includes("phrasebook") || currentUser.playMode === "phrasebook";
-    if (isCorrect) {
-      updateDrillStats(current.id, true);
+  const submitAnswer = (submitted) => {
+    if (!current) return;
+    const ok = isAnswerCorrect(submitted, current.answers);
+    const isPhrasebook = current.topicId === "phrasebook";
+    const statsPatch = updateDrillStats(current.id, ok);
+    if (ok) {
       playSound("correct");
       const newStreak = currentUser.streak + 1;
       const gained = Math.round((10 + Math.min(newStreak * 2, 20)) * currentUser.comboMultiplier);
       const coinsGained = Math.max(1, Math.round(gained / 5));
-      const dailyGoalJustCompleted = currentUser.completedToday + 1 === currentUser.dailyGoal;
-      if (dailyGoalJustCompleted) playSound("daily-goal");
-      const missionPatch = updateMissionProgress();
-      updateUser({
-        score: currentUser.score + gained,
-        coins: currentUser.coins + coinsGained,
-        xp: currentUser.xp + 25,
-        streak: newStreak,
-        bestStreak: Math.max(currentUser.bestStreak, newStreak),
-        completedToday: currentUser.completedToday + 1,
-        answeredIds: [...currentUser.answeredIds, current.id],
-        wrongIds: currentUser.wrongIds.filter((id) => id !== current.id),
-        feedback: { ok: true, text: `Correct. +${gained} points · +${coinsGained} coins`, explanation: current.explanation },
-        input: "",
-        lastCorrectAnswer: current.answers[0],
-        ...missionPatch
-      });
-      setTimeout(() => {
-        updateUser({ feedback: null });
-        moveToNextDrill();
-      }, 1100);
+      if (currentUser.completedToday + 1 === currentUser.dailyGoal) playSound("daily-goal");
+      const activeProgress = activeMission && currentUser.currentFlow === "mission" ? currentUser.missionProgress?.[activeMission.id] || { count: 0, completed: false } : null;
+      const missionPatch = activeProgress ? { missionProgress: { ...(currentUser.missionProgress || {}), [activeMission.id]: { count: activeProgress.count + 1, completed: activeProgress.count + 1 >= activeMission.goal } } } : {};
+      updateUser({ ...statsPatch, ...missionPatch, score: currentUser.score + gained, coins: currentUser.coins + coinsGained, xp: currentUser.xp + 25, streak: newStreak, bestStreak: Math.max(currentUser.bestStreak, newStreak), completedToday: currentUser.completedToday + 1, answeredIds: [...currentUser.answeredIds, current.id], wrongIds: currentUser.wrongIds.filter((id) => id !== current.id), feedback: { ok: true, text: `Correct · +${gained} XP · +${coinsGained} coins`, explanation: current.explanation }, input: "", builderAnswer: [], lastCorrectAnswer: current.answers[0] });
+      setTimeout(nextDrill, 900);
     } else {
-      updateDrillStats(current.id, false);
       playSound("wrong");
-      updateUser({
-        hearts: isPhrasebook ? currentUser.hearts : Math.max(currentUser.hearts - 1, 0),
-        streak: 0,
-        wrongIds: currentUser.wrongIds.includes(current.id) ? currentUser.wrongIds : [...currentUser.wrongIds, current.id],
-        feedback: { ok: false, text: "Not quite", explanation: `Correct answer: ${current.answers[0]}. ${current.explanation}` },
-        lastCorrectAnswer: current.answers[0]
-      });
+      updateUser({ ...statsPatch, hearts: isPhrasebook ? currentUser.hearts : Math.max(currentUser.hearts - 1, 0), streak: 0, wrongIds: currentUser.wrongIds.includes(current.id) ? currentUser.wrongIds : [...currentUser.wrongIds, current.id], feedback: { ok: false, text: "Not quite", explanation: `Correct: ${current.answers[0]}` }, lastCorrectAnswer: current.answers[0] });
     }
   };
 
-  const handleSubmit = () => {
-    if (!currentUser.input.trim()) return;
-    checkAnswer(currentUser.input);
-  };
-
-  const submitBuilder = () => {
-    const answer = (currentUser.builderAnswer || []).join(" ");
-    checkAnswer(answer);
+  const startVoiceInput = () => {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return updateUser({ feedback: { ok: false, text: "Voice input unavailable", explanation: "Please type your answer manually." } });
+    if (recognitionRef.current) recognitionRef.current.stop();
+    const rec = new SR();
+    rec.lang = "id-ID"; rec.interimResults = false; rec.maxAlternatives = 1;
+    rec.onresult = (event) => updateUser({ input: event.results?.[0]?.[0]?.transcript || "" });
+    rec.onerror = () => updateUser({ feedback: { ok: false, text: "Voice input unavailable", explanation: "Try Chrome with microphone permission, or type manually." } });
+    recognitionRef.current = rec; rec.start();
   };
 
   const addPhrasebookItem = () => {
-    const form = currentUser.phrasebookForm || {};
-    const idn = (form.idn || "").trim();
-    const eng = (form.eng || "").trim();
-    const note = (form.note || "").trim();
-    const kind = form.kind || "phrase";
-    if (!idn || !eng) {
-      updateUser({ feedback: { ok: false, text: "Missing phrase or meaning", explanation: "Add both the Bahasa Indonesia phrase/word and the English meaning." } });
-      return;
-    }
-    const item = { id: Date.now(), idn, eng, note, kind, createdAt: new Date().toISOString() };
+    const f = currentUser.phrasebookForm || {};
+    const idn = (f.idn || "").trim();
+    const eng = (f.eng || "").trim();
+    if (!idn || !eng) return updateUser({ feedback: { ok: false, text: "Missing phrase or meaning", explanation: "Add both Bahasa Indonesia and English." } });
+    const item = { id: Date.now(), idn, eng, note: (f.note || "").trim(), kind: f.kind || "phrase", createdAt: new Date().toISOString() };
     playSound("correct");
-    updateUser({
-      phrasebook: [item, ...(currentUser.phrasebook || [])],
-      phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" },
-      feedback: { ok: true, text: "Added to training", explanation: "This item is now included in My Training, Builder, Typing, and Listening training." }
-    });
+    updateUser({ phrasebook: [item, ...(currentUser.phrasebook || [])], phrasebookForm: { idn: "", eng: "", note: "", kind: "phrase" }, feedback: { ok: true, text: "Added to training", explanation: "It now appears in your personalised training." } });
   };
 
-  const removePhrasebookItem = (id) => {
-    updateUser({ phrasebook: (currentUser.phrasebook || []).filter((item) => item.id !== id), shuffledOptions: {} });
-  };
+  const removePhrasebookItem = (id) => updateUser({ phrasebook: (currentUser.phrasebook || []).filter((item) => item.id !== id) });
 
   const installApp = async () => {
-    if (!deferredPrompt) {
-      updateUser({ feedback: { ok: false, text: "Install prompt not ready", explanation: "In Chrome, use the browser menu and choose Add to Home screen." } });
-      return;
-    }
+    if (!deferredPrompt) return updateUser({ feedback: { ok: false, text: "Install prompt not ready", explanation: "Use Chrome menu → Add to Home screen." } });
     deferredPrompt.prompt();
     const choice = await deferredPrompt.userChoice;
-    setDeferredPrompt(null);
-    setInstallReady(false);
-    if (choice?.outcome === "accepted") {
-      setIsInstalled(true);
-      updateUser({ feedback: { ok: true, text: "App install started", explanation: "Open it from your home screen for the best full-screen experience." } });
-    }
+    setDeferredPrompt(null); setInstallReady(false);
+    if (choice?.outcome === "accepted") setIsInstalled(true);
   };
 
   const createProfile = () => {
     const clean = newProfileName.trim();
     if (!clean) return;
     setProfiles((prev) => ({ ...prev, [clean]: prev[clean] || blankUserState() }));
-    setActiveProfile(clean);
-    setNewProfileName("");
-    setShowProfileManager(false);
+    setActiveProfile(clean); setNewProfileName(""); setShowProfileManager(false);
   };
 
-  const resetProfile = () => {
-    setProfiles((prev) => ({ ...prev, [activeProfile]: blankUserState() }));
-    setShowProfileManager(true);
+  const resetProfile = () => { setProfiles((prev) => ({ ...prev, [activeProfile]: blankUserState() })); setShowProfileManager(true); };
+  const footer = <div style={styles.footer}>Created by Tony Charmley · {APP_VERSION_LABEL}</div>;
+
+  const feedbackBlock = currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.good : styles.bad) }}><div style={{ fontWeight: 900 }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div></div> : null;
+
+  const TrainingCard = () => {
+    if (!current) return <div style={styles.card}>No drill available.</div>;
+    const isTyping = ["typing", "smart", "review", "weak", "mission"].includes(currentUser.currentFlow) && current.type === "typing";
+    const isBuilder = current.type === "builder";
+    const audioText = current.type === "listening" || current.type === "word" ? current.prompt : current.type === "conversation" ? current.theySay : current.answers?.[0];
+    return <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1" }}>{current.instruction}</div></div><div style={{ marginTop: 18, ...styles.muted, fontSize: 13 }}>{current.scenario}</div>{current.type === "conversation" ? <div style={{ ...styles.item, marginTop: 12 }}><div style={styles.muted}>They say:</div><div style={{ fontSize: 22, fontWeight: 900, marginTop: 5 }}>{current.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current.tip}</div></div> : <h2 style={{ fontSize: 25, lineHeight: 1.18, margin: "10px 0 16px", fontWeight: 900 }}>{current.prompt}</h2>}{isTyping ? <><div style={{ ...styles.muted, marginBottom: 10 }}>Type your answer in Bahasa Indonesia.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(e) => updateUser({ input: e.target.value })} onKeyDown={(e) => e.key === "Enter" && submitAnswer(currentUser.input)} placeholder="Type Bahasa Indonesia" /><button style={{ ...styles.button, width: 52, padding: 0 }} onClick={() => speak(current.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 52, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div><button style={{ ...styles.primary, width: "100%", marginTop: 12 }} onClick={() => submitAnswer(currentUser.input)}>Check</button></> : isBuilder ? <><div style={{ ...styles.item, minHeight: 58, marginBottom: 10 }}>{(currentUser.builderAnswer || []).length ? currentUser.builderAnswer.map((word, idx) => <button key={`${word}-${idx}`} style={{ ...styles.button, margin: 4 }} onClick={() => updateUser({ builderAnswer: currentUser.builderAnswer.filter((_, i) => i !== idx) })}>{word}</button>) : <div style={styles.muted}>Tap words below to build the sentence.</div>}</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{(current.tiles || []).map((word, idx) => <button key={`${word}-${idx}`} style={styles.button} onClick={() => updateUser({ builderAnswer: [...(currentUser.builderAnswer || []), word] })}>{word}</button>)}</div><button style={{ ...styles.primary, width: "100%", marginTop: 12 }} onClick={() => submitAnswer((currentUser.builderAnswer || []).join(" "))}>Check Sentence</button><button style={{ ...styles.button, width: "100%", marginTop: 8 }} onClick={() => updateUser({ builderAnswer: [] })}>Clear</button></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.choice} onClick={() => submitAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(audioText)}>🔊 Play Bahasa</button></div>}<div style={{ ...styles.muted, marginTop: 12 }}>Tip: {current.tip}</div>{currentUser.lastCorrectAnswer ? <button style={{ ...styles.button, width: "100%", marginTop: 10 }} onClick={() => speak(currentUser.lastCorrectAnswer)}>🔊 Play Correct Answer</button> : null}{feedbackBlock}{current.breakdown?.length ? <details style={{ marginTop: 12 }}><summary style={{ cursor: "pointer", color: "#86efac", fontWeight: 800 }}>Phrase Breakdown</summary><div style={{ display: "grid", gap: 6, marginTop: 10 }}>{current.breakdown.map(([p, m]) => <div key={`${p}-${m}`} style={{ color: "#cbd5e1" }}><strong style={{ color: "#86efac" }}>{p}</strong> = {m}</div>)}</div></details> : null}</div>;
   };
 
-  const renderBreakdown = (breakdown) => {
-    if (!breakdown || !breakdown.length) return null;
-    return <div style={{ marginTop: 12, ...styles.achievementRow }}><div style={{ fontWeight: 800, marginBottom: 8 }}>Phrase Breakdown</div><div style={{ display: "grid", gap: 6 }}>{breakdown.map(([phrase, meaning]) => <div key={`${phrase}-${meaning}`} style={{ color: "#cbd5e1", fontSize: 14 }}><strong style={{ color: "#86efac" }}>{phrase}</strong> = {meaning}</div>)}</div></div>;
-  };
+  const BottomNav = () => <div style={styles.bottomNav}><div style={styles.navInner}>{[["learn", "🏠", "Learn"], ["review", "🔁", "Review"], ["speak", "💬", "Speak"], ["phrasebook", "⭐", "Phrases"], ["profile", "👤", "Profile"]].map(([tab, icon, label]) => <button key={tab} style={{ ...styles.navBtn, ...(currentUser.activeTab === tab ? styles.navActive : {}) }} onClick={() => updateUser({ activeTab: tab })}><div style={{ fontSize: 20 }}>{icon}</div>{label}</button>)}</div></div>;
 
-  const renderFooter = () => <div style={styles.footer}>Created by Tony Charmley · {APP_VERSION_LABEL}</div>;
+  const Home = () => <><div style={styles.hero}><div style={styles.pill}>Continue Learning</div><h1 style={styles.title}>{dueItems.length ? `${dueItems.length} reviews due` : weakItems.length ? "Strengthen weak phrases" : "Ready for today?"}</h1><p style={styles.text}>Fast path: review, build sentences, then complete one Bali mission.</p><button style={{ ...styles.primary, width: "100%", marginTop: 16 }} onClick={() => setFlow("smart")}>Continue</button></div><div style={styles.grid3}><div style={styles.stat}><div>🔥</div><strong>{currentUser.streak}</strong><div style={styles.muted}>Streak</div></div><div style={styles.stat}><div>🔁</div><strong>{dueItems.length}</strong><div style={styles.muted}>Due</div></div><div style={styles.stat}><div>🪙</div><strong>{currentUser.coins}</strong><div style={styles.muted}>Coins</div></div></div><div style={styles.card}><h3 style={styles.sectionTitle}>Quick Practice</h3><div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8, marginTop: 12 }}><button style={styles.button} onClick={() => setFlow("builder")}>🧩 Sentence Builder</button><button style={styles.button} onClick={() => setFlow("listening")}>🎧 Listening</button><button style={styles.button} onClick={() => setFlow("review")}>🔁 Due Review</button><button style={styles.button} onClick={() => setFlow("weak")}>🎯 Weak Phrases</button></div></div></>;
 
-  const renderPhrasebookManager = () => {
-    const form = currentUser.phrasebookForm || { idn: "", eng: "", note: "", kind: "phrase" };
-    return <div style={styles.card}><div style={styles.row}><div style={styles.badge}>My Phrasebook</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>{(currentUser.phrasebook || []).length} saved</div></div><h2 style={{ fontSize: 22, lineHeight: 1.25, marginTop: 14, marginBottom: 8, color: "#fff", fontWeight: 800 }}>Add your own words and phrases</h2><p style={{ ...styles.muted, lineHeight: 1.5 }}>Add phrases from real life, WhatsApp messages, staff conversations, signs, menus, or anything you want to practise.</p><div style={{ display: "grid", gap: 10, marginTop: 14 }}><div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Bahasa Indonesia</div><input style={styles.input} value={form.idn} onChange={(e) => updateUser({ phrasebookForm: { ...form, idn: e.target.value } })} placeholder="Example: Bisa datang sekarang?" /></div><div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>English meaning</div><input style={styles.input} value={form.eng} onChange={(e) => updateUser({ phrasebookForm: { ...form, eng: e.target.value } })} placeholder="Example: Can you come now?" /></div><div><div style={{ color: "#cbd5e1", fontWeight: 700, marginBottom: 6 }}>Note or context</div><textarea style={styles.textarea} value={form.note} onChange={(e) => updateUser({ phrasebookForm: { ...form, note: e.target.value } })} placeholder="Example: Use this when messaging villa staff" /></div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={form.kind === "phrase" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "phrase" } })}>Phrase</button><button style={form.kind === "word" ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ phrasebookForm: { ...form, kind: "word" } })}>Word</button></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={addPhrasebookItem}>Add to Training</button></div>{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div></div> : null}<div style={{ marginTop: 18 }}><h3 style={styles.sectionTitle}>Saved Items</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => <div key={item.id} style={styles.achievementRow}><div style={{ fontWeight: 800, color: "#86efac" }}>{item.idn}</div><div style={{ color: "#e5edf7", marginTop: 4 }}>{item.eng}</div>{item.note ? <div style={{ ...styles.muted, marginTop: 6, fontSize: 13 }}>{item.note}</div> : null}<div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}><button style={styles.button} onClick={() => speak(item.idn)}>🔊 Listen</button><button style={styles.button} onClick={() => switchMode("phrasebook")}>Train</button><button style={buttonStyle(false, true)} onClick={() => removePhrasebookItem(item.id)}>Delete</button></div></div>) : <div style={{ ...styles.muted, lineHeight: 1.5 }}>No saved phrases yet. Add your first word or phrase above.</div>}</div></div></div>;
-  };
+  const Review = () => <><div style={styles.card}><h2 style={styles.sectionTitle}>Review</h2><p style={styles.text}>Spaced repetition keeps important phrases coming back at the right time.</p><div style={{ display: "grid", gap: 8, marginTop: 12 }}><button style={styles.primary} onClick={() => setFlow("review")}>Review Due Items ({dueItems.length})</button><button style={styles.button} onClick={() => setFlow("weak")}>Practise Weak Phrases ({weakItems.length})</button><button style={styles.button} onClick={() => setFlow("words")}>Core Words</button></div></div><div style={styles.card}><h3 style={styles.sectionTitle}>Topic Filter</h3><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingTop: 12 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", ...(currentUser.mode === topic.id ? styles.active : {}) }} onClick={() => updateUser({ mode: topic.id })}>{topic.label}</button>)}</div></div></>;
 
-  const renderMissions = () => <div style={styles.card}><h3 style={styles.sectionTitle}>🎯 Real Bali Missions</h3><p style={{ ...styles.muted, lineHeight: 1.5 }}>Missions are short focused sessions for actual Bali situations.</p><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{missions.map((mission) => { const progress = currentUser.missionProgress?.[mission.id] || { count: 0, completed: false }; return <div key={mission.id} style={styles.achievementRow}><div style={styles.row}><div><div style={{ fontWeight: 800 }}>{mission.label}</div><div style={{ ...styles.muted, fontSize: 13, marginTop: 3 }}>{mission.description}</div><div style={{ ...styles.muted, fontSize: 13, marginTop: 5 }}>{Math.min(progress.count, mission.goal)}/{mission.goal} complete {progress.completed ? "✅" : ""}</div></div><button style={styles.buttonPrimary} onClick={() => startMission(mission)}>Start</button></div></div>; })}</div></div>;
+  const Speak = () => <><div style={styles.card}><h2 style={styles.sectionTitle}>Real Bali Missions</h2><p style={styles.text}>Practise real situations, not random words.</p><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{missions.map((m) => { const p = currentUser.missionProgress?.[m.id] || { count: 0, completed: false }; return <div key={m.id} style={styles.item}><div style={styles.row}><div><strong>{m.label}</strong><div style={{ ...styles.muted, fontSize: 13, marginTop: 3 }}>{m.description}</div><div style={{ ...styles.muted, fontSize: 13, marginTop: 5 }}>{Math.min(p.count, m.goal)}/{m.goal} complete {p.completed ? "✅" : ""}</div></div><button style={styles.primary} onClick={() => { const missionPool = combined.typing.filter((d) => d.topicId === m.topicId); updateUser({ activeMissionId: m.id, currentFlow: "mission", activeTab: "train", currentDrillId: getRandomDrillId(missionPool), feedback: null }); }}>Start</button></div></div>; })}</div></div><div style={styles.card}><button style={{ ...styles.button, width: "100%" }} onClick={() => setFlow("conversation")}>💬 Conversation Replies</button></div></>;
 
-  if (showProfileManager) {
-    return <div style={styles.page}><div style={styles.wrap}><div style={styles.pill}>👤 Choose a learner</div><h1 style={styles.heroTitle}>Who is using the app?</h1><p style={styles.heroText}>Each profile keeps separate progress, streaks, coins, reviews, missions, and phrasebook items.</p><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.profileButton} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}><div style={{ fontWeight: 800 }}>{name}</div><div style={{ color: "#94a3b8", marginTop: 4, fontSize: 13 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} pts · {(profiles[name] || {}).coins || 0} coins · {((profiles[name] || {}).phrasebook || []).length} saved</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(event) => setNewProfileName(event.target.value)} placeholder="Add a new profile name" /><button style={styles.buttonPrimary} onClick={createProfile}>Add</button></div></div>{renderFooter()}</div></div>;
-  }
+  const Phrasebook = () => { const f = currentUser.phrasebookForm || {}; return <><div style={styles.card}><h2 style={styles.sectionTitle}>My Phrasebook</h2><p style={styles.text}>Add phrases from real life and train them immediately.</p><div style={{ display: "grid", gap: 10, marginTop: 14 }}><input style={styles.input} value={f.idn || ""} onChange={(e) => updateUser({ phrasebookForm: { ...f, idn: e.target.value } })} placeholder="Bahasa: Bisa datang sekarang?" /><input style={styles.input} value={f.eng || ""} onChange={(e) => updateUser({ phrasebookForm: { ...f, eng: e.target.value } })} placeholder="English: Can you come now?" /><textarea style={styles.textarea} value={f.note || ""} onChange={(e) => updateUser({ phrasebookForm: { ...f, note: e.target.value } })} placeholder="Note or context" /><button style={styles.primary} onClick={addPhrasebookItem}>Add to Training</button><button style={styles.button} onClick={() => setFlow("phrasebook")}>Train My Phrases</button></div>{feedbackBlock}</div><div style={styles.card}><h3 style={styles.sectionTitle}>Saved</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{(currentUser.phrasebook || []).length ? currentUser.phrasebook.map((item) => <div key={item.id} style={styles.item}><strong style={{ color: "#86efac" }}>{item.idn}</strong><div style={{ marginTop: 4 }}>{item.eng}</div>{item.note ? <div style={{ ...styles.muted, marginTop: 5 }}>{item.note}</div> : null}<div style={{ display: "flex", gap: 8, marginTop: 10 }}><button style={styles.button} onClick={() => speak(item.idn)}>🔊</button><button style={styles.button} onClick={() => removePhrasebookItem(item.id)}>Delete</button></div></div>) : <div style={styles.muted}>No saved phrases yet.</div>}</div></div></>; };
 
-  if (!currentUser.started) {
-    return <div style={styles.page}><div style={styles.wrap}><div style={styles.row}><div style={styles.pill}>✨ Bali Bahasa Trainer</div><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button></div><h1 style={styles.heroTitle}>Learn Indonesian for <span style={{ color: "#86efac" }}>real Bali conversations</span></h1><p style={styles.heroText}>Built for speed: spaced repetition, weak-phrase review, sentence builder, Bali missions, sound effects, and manual phrasebook training.</p><div style={styles.card}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}><div style={styles.smallStat}><div style={{ fontSize: 20 }}>📚</div><div style={{ fontWeight: 800 }}>{flattenPhrases(baliBahasaDataset).length}</div><div style={styles.muted}>Phrases</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>🔁</div><div style={{ fontWeight: 800 }}>{dueCount}</div><div style={styles.muted}>Due</div></div><div style={styles.smallStat}><div style={{ fontSize: 20 }}>⭐</div><div style={{ fontWeight: 800 }}>{(currentUser.phrasebook || []).length}</div><div style={styles.muted}>Yours</div></div></div><div style={{ marginBottom: 14 }}><div style={{ marginBottom: 8, color: "#cbd5e1", fontWeight: 700 }}>Daily goal</div><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }}>{[5, 10, 20].map((goal) => <button key={goal} style={goal === currentUser.dailyGoal ? { ...styles.buttonPrimary, minHeight: 42 } : { ...styles.button, minHeight: 42 }} onClick={() => updateUser({ dailyGoal: goal })}>{goal} drills</button>)}</div></div><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser({ started: true })}>Start Training</button></div>{renderFooter()}</div></div>;
-  }
+  const Profile = () => <><div style={styles.card}><h2 style={styles.sectionTitle}>{activeProfile}</h2><div style={styles.grid3}><div style={styles.stat}><strong>{levelData.level}</strong><div style={styles.muted}>Level</div></div><div style={styles.stat}><strong>{currentUser.score}</strong><div style={styles.muted}>XP</div></div><div style={styles.stat}><strong>{currentUser.bestStreak}</strong><div style={styles.muted}>Best</div></div></div><div style={{ marginTop: 14, ...styles.progress }}><div style={progressFill(xpProgress)} /></div><div style={{ display: "grid", gap: 8, marginTop: 14 }}><button style={styles.button} onClick={() => setShowProfileManager(true)}>Switch Profile</button><button style={styles.button} onClick={installApp}>{isInstalled ? "Installed" : installReady ? "Install App" : "Add to Home Screen"}</button><button style={styles.button} onClick={() => updateUser({ muted: !currentUser.muted })}>{currentUser.muted ? "Unmute Sounds" : "Mute Sounds"}</button><button style={{ ...styles.button, ...styles.warn }} onClick={resetProfile}>Reset Profile</button></div></div><div style={styles.card}><h3 style={styles.sectionTitle}>Fastest Daily Plan</h3><p style={styles.text}>1. Continue. 2. Sentence Builder. 3. One Mission. 4. Add any real phrase you heard today.</p></div></>;
 
-  const isTypingLike = currentUser.playMode === "typing" || currentUser.playMode === "phrasebook" || currentUser.playMode === "review" || currentUser.playMode === "weak" || currentUser.playMode === "mission";
-  const isBuilder = currentUser.playMode === "builder";
-  const playPromptText = currentUser.playMode === "listening" || currentUser.playMode === "words" ? current?.prompt : currentUser.playMode === "conversation" ? current?.theySay : current?.answers?.[0];
-  const availableTiles = isBuilder ? (current?.tiles || []).filter((_, index) => !(currentUser.builderAnswer || []).some((__, chosenIndex) => chosenIndex === index && false)) : [];
+  if (showProfileManager) return <div style={styles.page}><div style={styles.wrap}><div style={styles.hero}><div style={styles.pill}>Bali Bahasa</div><h1 style={styles.title}>Choose learner</h1><p style={styles.text}>Each profile keeps separate progress and phrasebook items.</p></div><div style={styles.card}><div style={{ display: "grid", gap: 10 }}>{Object.keys(profiles).map((name) => <button key={name} style={styles.choice} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}>{name}<div style={{ ...styles.muted, marginTop: 4 }}>Level {getLevelData((profiles[name] || {}).score || 0).level} · {(profiles[name] || {}).score || 0} XP</div></button>)}</div><div style={{ display: "flex", gap: 8, marginTop: 14 }}><input style={styles.input} value={newProfileName} onChange={(e) => setNewProfileName(e.target.value)} placeholder="New profile" /><button style={styles.primary} onClick={createProfile}>Add</button></div></div>{footer}</div></div>;
 
-  return <div style={styles.page}><div style={styles.wrap}>
-    <div style={styles.card}><div style={styles.row}><div><div style={{ color: "#86efac", letterSpacing: "0.18em", textTransform: "uppercase", fontSize: 11, fontWeight: 800 }}>{levelData.title}</div><div style={{ fontSize: 28, fontWeight: 800 }}>Level {levelData.level}</div></div><div style={{ display: "flex", gap: 8, alignItems: "center" }}><button style={buttonStyle(false, false)} onClick={() => setShowProfileManager(true)}>{activeProfile}</button><div style={{ ...styles.badge, background: "rgba(251,191,36,0.14)", color: "#fde68a", borderColor: "rgba(251,191,36,0.22)" }}>🪙 {currentUser.coins}</div></div></div><div style={{ marginTop: 14, ...styles.progressTrack }}><div style={progressFill(progressToNext)} /></div><div style={{ ...styles.statGrid, marginTop: 14 }}><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔥</div><div style={{ fontWeight: 800 }}>{currentUser.streak}</div><div style={styles.muted}>Streak</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>🔁</div><div style={{ fontWeight: 800 }}>{dueCount}</div><div style={styles.muted}>Due</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>❤️</div><div style={{ fontWeight: 800 }}>{currentUser.hearts}</div><div style={styles.muted}>Lives</div></div><div style={styles.smallStat}><div style={{ fontSize: 18 }}>⚔️</div><div style={{ fontWeight: 800 }}>x{currentUser.comboMultiplier.toFixed(1)}</div><div style={styles.muted}>Combo</div></div></div><div style={{ marginTop: 14 }}><div style={{ ...styles.row, marginBottom: 6 }}><div style={styles.muted}>Daily goal</div><div style={{ color: "#86efac", fontWeight: 700 }}>{currentUser.completedToday}/{currentUser.dailyGoal}</div></div><div style={styles.progressTrack}><div style={progressFill((currentUser.completedToday / currentUser.dailyGoal) * 100)} /></div></div></div>
+  if (!currentUser.started) return <div style={styles.page}><div style={styles.wrap}><div style={styles.hero}><div style={styles.pill}>Conversation-first</div><h1 style={styles.title}>Speak useful Bahasa faster</h1><p style={styles.text}>Guided practice for Bali: review, sentence building, real missions, and your own phrasebook.</p><button style={{ ...styles.primary, width: "100%", marginTop: 16 }} onClick={() => updateUser({ started: true })}>Start</button></div>{footer}</div></div>;
 
-    <div style={{ ...styles.card, padding: 12 }}><div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8, marginBottom: 8 }}><button style={buttonStyle(false, false)} onClick={() => updateUser({ feedback: { ok: true, text: "Progress saved", explanation: "Your profile has been saved on this device." } })}>💾 Save</button><button style={buttonStyle(installReady, false)} onClick={installApp}>{isInstalled ? "✅ Installed" : "📲 Install"}</button><button style={buttonStyle(currentUser.muted, false)} onClick={() => updateUser({ muted: !currentUser.muted })}>{currentUser.muted ? "🔇 Muted" : "🔊 Sound"}</button></div><div style={{ display: "flex", gap: 8, overflowX: "auto", paddingBottom: 4, marginBottom: 8 }}>{topicList.map((topic) => <button key={topic.id} style={{ ...styles.button, whiteSpace: "nowrap", borderRadius: 999, ...(currentUser.mode === topic.id ? styles.buttonActive : {}) }} onClick={() => { const nextPool = topic.id === "phrasebook" ? combinedContent.phrasebook : combinedContent.translate.filter((d) => topic.id === "all" || d.topicId === topic.id); updateUser({ mode: topic.id, currentDrillId: getRandomDrillId(nextPool.length ? nextPool : combinedContent.translate), feedback: null, input: "", shuffledOptions: {}, lastCorrectAnswer: "", builderAnswer: [] }); }}>{topic.label}</button>)}</div><div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8 }}><button style={buttonStyle(currentUser.playMode === "typing", false)} onClick={() => switchMode("typing")}>🧠 Typing</button><button style={buttonStyle(currentUser.playMode === "multiple", false)} onClick={() => switchMode("multiple")}>🎯 Multiple Choice</button><button style={buttonStyle(currentUser.playMode === "builder", false)} onClick={() => switchMode("builder")}>🧩 Builder</button><button style={buttonStyle(currentUser.playMode === "review", false)} onClick={() => switchMode("review")}>🔁 Due Review</button><button style={buttonStyle(currentUser.playMode === "weak", false)} onClick={() => switchMode("weak")}>🎯 Weak Phrases</button><button style={buttonStyle(currentUser.playMode === "listening", false)} onClick={() => switchMode("listening")}>🎧 Listening</button><button style={buttonStyle(currentUser.playMode === "words", false)} onClick={() => switchMode("words")}>🔤 Words</button><button style={buttonStyle(currentUser.playMode === "conversation", false)} onClick={() => switchMode("conversation")}>💬 Conversation</button><button style={buttonStyle(currentUser.playMode === "phrasebook", false)} onClick={() => switchMode("phrasebook")}>⭐ My Training</button><button style={buttonStyle(currentUser.playMode === "phrasebook_edit", false)} onClick={() => updateUser({ playMode: "phrasebook_edit", feedback: null, input: "" })}>➕ Add Phrase</button><button style={buttonStyle(false, true)} onClick={resetProfile}>↺ Reset Profile</button></div></div>
+  const screen = currentUser.activeTab === "train" ? <TrainingCard /> : currentUser.activeTab === "review" ? <Review /> : currentUser.activeTab === "speak" ? <Speak /> : currentUser.activeTab === "phrasebook" ? <Phrasebook /> : currentUser.activeTab === "profile" ? <Profile /> : <Home />;
 
-    {renderMissions()}
-
-    {currentUser.playMode === "phrasebook_edit" ? renderPhrasebookManager() : currentUser.hearts > 0 ? <div style={styles.card}><div style={styles.row}><div style={styles.badge}>{current?.category}</div><div style={{ ...styles.badge, background: "transparent", color: "#cbd5e1", borderColor: "rgba(255,255,255,0.15)" }}>{currentUser.playMode === "mission" && activeMission ? `${activeMission.label}` : `Drill ${currentUser.answeredIds.length + 1}`}</div></div><div style={{ marginTop: 14, marginBottom: 8, color: "#94a3b8", fontSize: 13, lineHeight: 1.4 }}><strong style={{ color: "#cbd5e1" }}>Scenario:</strong> {current?.scenario}</div><div style={{ marginBottom: 10, color: "#86efac", fontSize: 13, fontWeight: 700 }}>{current?.direction}</div>{currentUser.playMode === "conversation" ? <div style={{ ...styles.achievementRow, marginBottom: 12 }}><div style={{ color: "#94a3b8", fontSize: 13, marginBottom: 4 }}>They say:</div><div style={{ fontSize: 20, fontWeight: 800, lineHeight: 1.35 }}>{current?.theySay}</div><div style={{ marginTop: 8, color: "#cbd5e1" }}>{current?.tip}</div></div> : <h2 style={{ fontSize: 19, lineHeight: 1.35, marginTop: 0, marginBottom: 14, color: "#fff", fontWeight: 800 }}>{current?.prompt}</h2>}{isTypingLike ? <><div style={{ marginTop: -4, marginBottom: 12, color: "#cbd5e1", fontSize: 14, lineHeight: 1.45 }}>Type your answer in <strong>Bahasa Indonesia</strong>.</div><div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={currentUser.input} onChange={(event) => updateUser({ input: event.target.value })} onKeyDown={(event) => event.key === "Enter" && handleSubmit()} placeholder="Type your answer in Bahasa Indonesia" /><button style={{ ...styles.button, width: 50, padding: 0 }} onClick={() => speak(current?.answers?.[0])}>🔊</button>{voiceSupported ? <button style={{ ...styles.button, width: 50, padding: 0 }} onClick={startVoiceInput}>🎤</button> : null}</div></> : isBuilder ? <><div style={{ ...styles.achievementRow, minHeight: 54, marginBottom: 10 }}>{(currentUser.builderAnswer || []).length ? currentUser.builderAnswer.map((word, idx) => <button key={`${word}-${idx}`} style={{ ...styles.button, margin: 4 }} onClick={() => updateUser({ builderAnswer: (currentUser.builderAnswer || []).filter((_, i) => i !== idx) })}>{word}</button>) : <div style={styles.muted}>Tap words below to build the sentence.</div>}</div><div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>{(current?.tiles || []).map((word, idx) => <button key={`${word}-${idx}`} style={styles.button} onClick={() => updateUser({ builderAnswer: [...(currentUser.builderAnswer || []), word] })}>{word}</button>)}</div><button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 12 }} onClick={submitBuilder}>Check Sentence</button><button style={{ ...styles.button, width: "100%", marginTop: 8 }} onClick={() => updateUser({ builderAnswer: [] })}>Clear Sentence</button></> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.answerButton} onClick={() => checkAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(playPromptText)}>🔊 Play Bahasa</button></div>}<div style={{ marginTop: 12, ...styles.muted }}>{isTypingLike || isBuilder ? `Tip: ${current?.tip}` : `Tip: ${current?.tip}`}</div>{isTypingLike ? <button style={{ ...styles.buttonPrimary, width: "100%", marginTop: 14 }} onClick={handleSubmit}>Check Answer</button> : null}{currentUser.lastCorrectAnswer ? <button style={{ ...styles.button, width: "100%", marginTop: 10 }} onClick={() => speak(currentUser.lastCorrectAnswer)}>🔊 Play Correct Answer</button> : null}{currentUser.feedback ? <div style={{ marginTop: 14, ...(currentUser.feedback.ok ? styles.feedbackGood : styles.feedbackBad) }}><div style={{ fontWeight: 800, color: currentUser.feedback.ok ? "#a7f3d0" : "#fecdd3" }}>{currentUser.feedback.text}</div><div style={{ marginTop: 6, color: "#d6deea", lineHeight: 1.45 }}>{currentUser.feedback.explanation}</div>{renderBreakdown(current?.breakdown)}</div> : null}</div> : <div style={styles.card}><div style={{ textAlign: "center", fontSize: 42 }}>💀</div><div style={{ textAlign: "center", fontSize: 26, fontWeight: 800, marginTop: 6 }}>Run Over</div><p style={{ textAlign: "center", color: "#cbd5e1" }}>You ran out of lives. Reset and go again.</p><button style={{ ...styles.buttonPrimary, width: "100%" }} onClick={() => updateUser(blankUserState())}>Start New Run</button></div>}
-
-    <div style={styles.card}><h3 style={styles.sectionTitle}>🏆 Achievements</h3><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{achievements.map((item) => { const unlockedNow = currentUser.unlocked.includes(item.key); return <div key={item.key} style={{ ...styles.achievementRow, background: unlockedNow ? "rgba(251,191,36,0.10)" : "rgba(15,23,42,0.68)", borderColor: unlockedNow ? "rgba(251,191,36,0.22)" : "rgba(255,255,255,0.10)" }}><div style={styles.row}><div><div style={{ fontWeight: 800 }}>{item.label}</div><div style={{ ...styles.muted, fontSize: 14, marginTop: 3 }}>{item.desc}</div></div><div style={{ fontSize: 22 }}>{unlockedNow ? "🏆" : "🔒"}</div></div></div>; })}</div></div>
-
-    <div style={styles.card}><h3 style={styles.sectionTitle}>🚀 Fastest Learning Path</h3><div style={{ display: "grid", gap: 10, marginTop: 12 }}><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Daily plan</div><div style={styles.muted}>Do Due Review first, then Builder, then one Real Bali Mission. Finish with 5 phrases in Typing mode.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Spaced repetition active</div><div style={styles.muted}>{dueCount} item{dueCount === 1 ? "" : "s"} due today. Correct answers move further into the future. Mistakes return tomorrow.</div></div><div style={styles.achievementRow}><div style={{ fontWeight: 800, marginBottom: 6 }}>Sound effects</div><div style={styles.muted}>Add files to public/sounds/: correct.mp3, wrong.mp3, level-up.mp3, daily-goal.mp3.</div></div></div></div>
-
-    {renderFooter()}
-  </div></div>;
+  return <div style={styles.page}><div style={styles.wrap}>{screen}{footer}</div><BottomNav /></div>;
 }
