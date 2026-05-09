@@ -427,7 +427,7 @@ const topicCoreWords = {
     makeWord("tw006", "langsung", "directly", "adverb", 3, ["transport"]),
     makeWord("tw007", "berangkat", "leave", "verb", 2, ["transport"]),
     makeWord("tw008", "sampai", "arrive", "verb", 2, ["transport"]),
-    ...places.map((p, i) => makeWord(`twP${i}`, p.idn, p.eng, "place", 1, ["place"])))
+    ...places.map((p, i) => makeWord(`twP${i}`, p.idn, p.eng, "place", 1, ["place"]))
   ],
   villa_staff: [
     ...staffTasks.map((t, i) => makeWord(`vwT${i}`, t.idn, t.eng, "staff task", 2, ["villa"])),
