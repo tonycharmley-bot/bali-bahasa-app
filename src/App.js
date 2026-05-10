@@ -1,10 +1,10 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import baliBahasaDataset from "./dataset";
 
-const APP_VERSION = "2.4.0";
-const APP_VERSION_LABEL = "Version 2.4 — Guided Levels";
-const STORAGE_KEY = "bali-bahasa-profiles-v24";
-const CORRECT_DELAY_MS = 1800;
+const APP_VERSION = "2.5.0";
+const APP_VERSION_LABEL = "Version 2.5 — Polished Guided Learning";
+const STORAGE_KEY = "bali-bahasa-profiles-v25";
+const CORRECT_DELAY_MS = 1600;
 
 function normalize(text) {
   return String(text || "")
@@ -52,11 +52,7 @@ function addDays(days) {
   return d.toISOString().slice(0, 10);
 }
 
-function cleanId(text) {
-  return String(text || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-}
-
-function getLevelData(score) {
+function getXpRank(score) {
   if (score >= 1200) return { level: 6, title: "Confident Speaker", next: 1600 };
   if (score >= 850) return { level: 5, title: "Local Flow", next: 1200 };
   if (score >= 550) return { level: 4, title: "Villa & Driver Confidence", next: 850 };
@@ -76,9 +72,10 @@ function diffHint(wrote, correct) {
   return "Very close. Check word order or spelling.";
 }
 
-function safeTip(drill) {
+function safeHint(drill) {
   if (!drill) return "Use the context first.";
-  if (drill.type === "word-id-en") return "Recognise the meaning first.";
+  if (drill.type === "word-choice") return "Recognise the word before trying to recall it.";
+  if (drill.type === "word-id-en") return "Think of the everyday meaning.";
   if (drill.type === "word-en-id") return "Recall the Bahasa word from memory.";
   if (drill.type === "typing") return "Think of the pattern, then fill the key words.";
   if (drill.type === "builder") return "Start with the subject or request word.";
@@ -105,10 +102,10 @@ function flattenConversations(dataset) {
   );
 }
 
-const allPhrases = flattenPhrases(baliBahasaDataset);
-const allWords = flattenWords(baliBahasaDataset);
-const allChains = flattenConversations(baliBahasaDataset);
 const allTopics = baliBahasaDataset?.topics || [];
+const allWords = flattenWords(baliBahasaDataset);
+const allPhrases = flattenPhrases(baliBahasaDataset);
+const allChains = flattenConversations(baliBahasaDataset);
 
 function wordDistractors(word, field) {
   return shuffle(allWords.filter((w) => w.id !== word.id)).slice(0, 3).map((w) => w[field]);
@@ -123,19 +120,36 @@ function phraseDistractors(phrase, field = "idn") {
 function makeWordDrills(words) {
   return words.flatMap((w, i) => [
     {
+      id: `word-choice-${w.id || i}`,
+      sourceId: w.id,
+      type: "word-choice",
+      category: w.category,
+      topicId: w.topicId,
+      scenario: "Word recognition",
+      instruction: "Choose the meaning",
+      prompt: w.idn,
+      answers: [w.eng],
+      options: shuffle([w.eng, ...wordDistractors(w, "eng")]),
+      explanation: `${w.idn} = ${w.eng}`,
+      level: w.level || 1,
+      breakdown: [[w.idn, w.eng]],
+      baseWord: w
+    },
+    {
       id: `word-id-en-${w.id || i}`,
       sourceId: w.id,
       type: "word-id-en",
       category: w.category,
       topicId: w.topicId,
-      scenario: "Word practice",
+      scenario: "Word meaning",
       instruction: "Type the English meaning",
       prompt: w.idn,
       answers: [w.eng],
       options: shuffle([w.eng, ...wordDistractors(w, "eng")]),
       explanation: `${w.idn} = ${w.eng}`,
       level: w.level || 1,
-      breakdown: [[w.idn, w.eng]]
+      breakdown: [[w.idn, w.eng]],
+      baseWord: w
     },
     {
       id: `word-en-id-${w.id || i}`,
@@ -150,7 +164,8 @@ function makeWordDrills(words) {
       options: shuffle([w.idn, ...wordDistractors(w, "idn")]),
       explanation: `${w.idn} = ${w.eng}`,
       level: w.level || 1,
-      breakdown: [[w.idn, w.eng]]
+      breakdown: [[w.idn, w.eng]],
+      baseWord: w
     }
   ]);
 }
@@ -267,60 +282,12 @@ const baseContent = {
 };
 
 const levelRoadmap = [
-  {
-    level: 1,
-    title: "First Steps",
-    unlockText: "You can introduce yourself, ask simple questions, and recognise essential words.",
-    topics: ["core_basics", "warung_food"],
-    wordLimit: 18,
-    phraseLimit: 16,
-    requiredCorrect: 16
-  },
-  {
-    level: 2,
-    title: "Daily Bali Basics",
-    unlockText: "You can order simple food, ask where things are, and use polite requests.",
-    topics: ["warung_food", "directions_locations", "time_numbers"],
-    wordLimit: 22,
-    phraseLimit: 22,
-    requiredCorrect: 22
-  },
-  {
-    level: 3,
-    title: "Real Conversations",
-    unlockText: "You can handle short daily exchanges and simple WhatsApp messages.",
-    topics: ["social_smalltalk", "whatsapp_messages", "transport_driver"],
-    wordLimit: 25,
-    phraseLimit: 26,
-    requiredCorrect: 28
-  },
-  {
-    level: 4,
-    title: "Villa & Driver Confidence",
-    unlockText: "You can talk to staff, arrange pickups, and explain common villa issues.",
-    topics: ["villa_staff", "transport_driver", "problems_help"],
-    wordLimit: 28,
-    phraseLimit: 30,
-    requiredCorrect: 34
-  },
-  {
-    level: 5,
-    title: "Local Flow",
-    unlockText: "You can shop, bargain, book services, and understand more natural replies.",
-    topics: ["shopping_bargaining", "appointments_services", "social_smalltalk"],
-    wordLimit: 30,
-    phraseLimit: 34,
-    requiredCorrect: 40
-  },
-  {
-    level: 6,
-    title: "Confident Speaker",
-    unlockText: "You are building flexible daily conversation skills across all major Bali situations.",
-    topics: allTopics.map((t) => t.id),
-    wordLimit: 40,
-    phraseLimit: 45,
-    requiredCorrect: 50
-  }
+  { level: 1, title: "First Steps", capability: "Introduce yourself, recognise core words, and ask simple questions.", topics: ["core_basics", "warung_food"], wordLimit: 14, phraseLimit: 12, requiredCorrect: 14 },
+  { level: 2, title: "Daily Bali Basics", capability: "Order simple food, ask where things are, and use polite requests.", topics: ["warung_food", "directions_locations", "time_numbers"], wordLimit: 18, phraseLimit: 18, requiredCorrect: 20 },
+  { level: 3, title: "Real Conversations", capability: "Handle short daily exchanges and simple WhatsApp messages.", topics: ["social_smalltalk", "whatsapp_messages", "transport_driver"], wordLimit: 22, phraseLimit: 22, requiredCorrect: 26 },
+  { level: 4, title: "Villa & Driver Confidence", capability: "Talk to staff, arrange pickups, and explain common villa issues.", topics: ["villa_staff", "transport_driver", "problems_help"], wordLimit: 25, phraseLimit: 28, requiredCorrect: 32 },
+  { level: 5, title: "Local Flow", capability: "Shop, bargain, book services, and understand natural replies.", topics: ["shopping_bargaining", "appointments_services", "social_smalltalk"], wordLimit: 28, phraseLimit: 32, requiredCorrect: 38 },
+  { level: 6, title: "Confident Speaker", capability: "Build flexible daily conversation skills across major Bali situations.", topics: allTopics.map((t) => t.id), wordLimit: 36, phraseLimit: 40, requiredCorrect: 48 }
 ];
 
 const survivalPacks = [
@@ -339,6 +306,7 @@ function blankUser() {
     currentLevel: 1,
     completedLevels: [],
     levelProgress: {},
+    lastUnlocked: null,
     currentFlow: "level",
     currentDrillId: "",
     selectedTopicId: "core_basics",
@@ -374,6 +342,7 @@ function chooseNext(items, stats, currentId, schedule = {}, onlyDue = false, rec
   if (!candidates.length) candidates = items.filter((x) => x.id !== currentId);
   if (!candidates.length) candidates = items;
   if (!candidates.length) return null;
+
   const weighted = candidates.map((item) => {
     const s = stats[item.id] || { seen: 0, correct: 0, wrong: 0, streak: 0 };
     const weak = s.wrong * 3 + Math.max(0, s.seen - s.correct);
@@ -438,11 +407,10 @@ export default function App() {
 
   const user = profiles[activeProfile] || blankUser();
   const levelInfo = levelRoadmap.find((l) => l.level === user.currentLevel) || levelRoadmap[0];
-  const scoreLevel = getLevelData(user.score);
+  const xpRank = getXpRank(user.score);
 
   const phrasebook = useMemo(() => {
     const clean = (user.phrasebook || []).filter((x) => x.idn && x.eng);
-    const words = [];
     const typing = clean.map((p) => ({
       id: `pb-${p.id}`,
       type: "typing",
@@ -457,11 +425,11 @@ export default function App() {
       breakdown: [[p.idn, p.eng]],
       level: 1
     }));
-    return { words, typing, all: typing };
+    return { typing, all: typing };
   }, [user.phrasebook]);
 
   const content = useMemo(() => ({
-    words: [...baseContent.words, ...phrasebook.words],
+    words: baseContent.words,
     typing: [...baseContent.typing, ...phrasebook.typing],
     builder: baseContent.builder,
     listening: baseContent.listening,
@@ -498,13 +466,31 @@ export default function App() {
   const levelPhrases = useMemo(() => allPhrases.filter((p) => levelInfo.topics.includes(p.topicId)).slice(0, levelInfo.phraseLimit), [levelInfo]);
   const levelWordDrills = useMemo(() => makeWordDrills(levelWords), [levelWords]);
   const levelPhraseDrills = useMemo(() => makePhraseDrills(levelPhrases), [levelPhrases]);
+  const levelConversationDrills = useMemo(() => content.conversation.filter((d) => levelInfo.topics.includes(d.topicId)), [content.conversation, levelInfo]);
+
+  const levelCorrect = user.levelProgress?.[user.currentLevel]?.correct || 0;
+  const levelNeeded = levelInfo.requiredCorrect;
+  const wordTarget = Math.ceil(levelNeeded * 0.33);
+  const phraseTarget = Math.ceil(levelNeeded * 0.7);
+  const conversationTarget = Math.ceil(levelNeeded * 0.88);
+  const stageLabel = user.learningStage === "word-choice" ? "Word Recognition" : user.learningStage === "word-typing" ? "Word Recall" : user.learningStage === "phrases" ? "Phrases" : user.learningStage === "conversation" ? "Conversation" : user.learningStage === "test" ? "Level Test" : "Preview";
+
+  const microLesson = useMemo(() => {
+    if (user.learningStage === "word-choice" || user.learningStage === "word-typing") return { title: "Words First", body: "Recognise the words before you use them in phrases. This makes speaking feel easier." };
+    if (user.learningStage === "phrases") return { title: "Pattern Practice", body: "Now use your words inside short, useful Bali phrases." };
+    if (user.learningStage === "conversation") return { title: "Real Replies", body: "Now choose replies that fit a real situation." };
+    if (user.learningStage === "test") return { title: "Level Test", body: "Pass this mixed review to unlock the next level." };
+    return { title: "Words You'll Learn", body: "Each level starts with new words, then phrases, then conversation." };
+  }, [user.learningStage]);
+
   const levelDrills = useMemo(() => {
-    if (user.learningStage === "words") return levelWordDrills;
-    if (user.learningStage === "phrases") return [...levelPhraseDrills.builder, ...levelPhraseDrills.typing];
-    if (user.learningStage === "conversation") return content.conversation.filter((d) => levelInfo.topics.includes(d.topicId));
-    if (user.learningStage === "test") return [...levelWordDrills.slice(0, 8), ...levelPhraseDrills.typing.slice(0, 8), ...levelPhraseDrills.builder.slice(0, 5)];
-    return levelWordDrills;
-  }, [user.learningStage, levelWordDrills, levelPhraseDrills, content.conversation, levelInfo]);
+    if (user.learningStage === "word-choice") return levelWordDrills.filter((d) => d.type === "word-choice");
+    if (user.learningStage === "word-typing") return levelWordDrills.filter((d) => d.type !== "word-choice");
+    if (user.learningStage === "phrases") return [...levelPhraseDrills.choice, ...levelPhraseDrills.builder, ...levelPhraseDrills.typing];
+    if (user.learningStage === "conversation") return levelConversationDrills.length ? levelConversationDrills : [...levelPhraseDrills.listening, ...levelPhraseDrills.typing];
+    if (user.learningStage === "test") return [...levelWordDrills.slice(0, 8), ...levelPhraseDrills.typing.slice(0, 8), ...levelPhraseDrills.builder.slice(0, 5), ...levelConversationDrills.slice(0, 4)];
+    return levelWordDrills.filter((d) => d.type === "word-choice");
+  }, [user.learningStage, levelWordDrills, levelPhraseDrills, levelConversationDrills]);
 
   const dueItems = useMemo(() => {
     const today = todayKey();
@@ -560,17 +546,7 @@ export default function App() {
     window.speechSynthesis.speak(utterance);
   };
 
-  const startFlow = (flow, explicitPool) => {
-    const nextPool = explicitPool || poolForFlow(flow);
-    if (!nextPool.length) {
-      updateUser({ feedback: { ok: false, text: "Nothing to practise yet", explanation: "Try another topic or mode." } });
-      return;
-    }
-    updateUser({ activeTab: "train", currentFlow: flow, currentDrillId: getRandomDrillId(nextPool), feedback: null, lastCorrectAnswer: "", builderAnswer: [], shuffledOptions: {} });
-    setDraftInput("");
-  };
-
-  function poolForFlow(flow) {
+  const poolForFlow = (flow) => {
     if (flow === "level") return levelDrills.length ? levelDrills : levelWordDrills;
     if (flow === "topic") return content.typing.filter((d) => d.topicId === user.selectedTopicId);
     if (flow === "topic-words") return content.words.filter((d) => d.topicId === user.selectedTopicId);
@@ -582,29 +558,34 @@ export default function App() {
     if (flow === "weak") return weakItems;
     if (flow === "phrasebook") return content.phrasebook;
     return content.typing;
-  }
+  };
 
-  const updateStats = (id, ok) => {
-    const old = user.drillStats[id] || { seen: 0, correct: 0, wrong: 0, streak: 0 };
+  const startFlow = (flow, explicitPool) => {
+    const nextPool = explicitPool || poolForFlow(flow);
+    if (!nextPool.length) {
+      updateUser({ feedback: { ok: false, text: "Nothing to practise yet", explanation: "Try another topic or mode." } });
+      return;
+    }
+    updateUser({ activeTab: "train", currentFlow: flow, currentDrillId: getRandomDrillId(nextPool), feedback: null, lastCorrectAnswer: "", builderAnswer: [], shuffledOptions: {} });
+    setDraftInput("");
+  };
+
+  const updateStats = (id, ok, shown = false) => {
+    const old = user.drillStats[id] || { seen: 0, correct: 0, wrong: 0, streak: 0, shown: 0 };
     const oldSchedule = user.reviewSchedule[id] || { interval: 0 };
-    const interval = ok ? Math.min(Math.max(1, oldSchedule.interval || 1) * 2, 30) : 1;
+    const interval = ok ? Math.min(Math.max(1, oldSchedule.interval || 1) * 2, 30) : shown ? 1 : 1;
     return {
-      drillStats: { ...user.drillStats, [id]: { seen: old.seen + 1, correct: old.correct + (ok ? 1 : 0), wrong: old.wrong + (ok ? 0 : 1), streak: ok ? old.streak + 1 : 0 } },
-      reviewSchedule: { ...user.reviewSchedule, [id]: { interval, nextReview: ok ? addDays(interval) : addDays(1), lastResult: ok ? "correct" : "wrong" } }
+      drillStats: { ...user.drillStats, [id]: { seen: old.seen + 1, correct: old.correct + (ok ? 1 : 0), wrong: old.wrong + (!ok && !shown ? 1 : 0), shown: old.shown + (shown ? 1 : 0), streak: ok ? old.streak + 1 : 0 } },
+      reviewSchedule: { ...user.reviewSchedule, [id]: { interval, nextReview: ok ? addDays(interval) : addDays(1), lastResult: ok ? "correct" : shown ? "shown" : "wrong" } }
     };
   };
 
-  const levelCorrect = (user.levelProgress?.[user.currentLevel]?.correct || 0);
-  const levelNeeded = levelInfo.requiredCorrect;
-  const stageLabel = user.learningStage === "words" ? "Words" : user.learningStage === "phrases" ? "Phrases" : user.learningStage === "conversation" ? "Conversation" : user.learningStage === "test" ? "Level Test" : "Preview";
-
-  const maybeAdvanceStage = (nextCorrect) => {
+  const maybeStageAdvance = (nextCorrect) => {
     if (user.currentFlow !== "level") return null;
-    const wordTarget = Math.ceil(levelNeeded * 0.35);
-    const phraseTarget = Math.ceil(levelNeeded * 0.72);
-    if (user.learningStage === "words" && nextCorrect >= wordTarget) return "phrases";
+    if (user.learningStage === "word-choice" && nextCorrect >= Math.ceil(wordTarget * 0.55)) return "word-typing";
+    if (user.learningStage === "word-typing" && nextCorrect >= wordTarget) return "phrases";
     if (user.learningStage === "phrases" && nextCorrect >= phraseTarget) return "conversation";
-    if (user.learningStage === "conversation" && nextCorrect >= Math.ceil(levelNeeded * 0.9)) return "test";
+    if (user.learningStage === "conversation" && nextCorrect >= conversationTarget) return "test";
     return null;
   };
 
@@ -616,11 +597,13 @@ export default function App() {
   };
 
   const completeLevel = () => {
+    const completedLevel = user.currentLevel;
     const nextLevel = Math.min(user.currentLevel + 1, levelRoadmap.length);
     updateUser({
       activeTab: "level-complete",
-      completedLevels: Array.from(new Set([...(user.completedLevels || []), user.currentLevel])),
+      completedLevels: Array.from(new Set([...(user.completedLevels || []), completedLevel])),
       currentLevel: nextLevel,
+      lastUnlocked: { completedLevel, nextLevel },
       learningStage: "intro",
       currentFlow: "level",
       feedback: null,
@@ -632,14 +615,14 @@ export default function App() {
   const submitAnswer = (answer, showOnly = false) => {
     if (!current) return;
     const ok = !showOnly && isCorrect(answer, current.answers);
-    const statsPatch = updateStats(current.id, ok);
+    const statsPatch = updateStats(current.id, ok, showOnly);
     if (ok) {
       playSound("correct");
       const newStreak = user.streak + 1;
       const gained = 10 + Math.min(newStreak * 2, 20);
-      const nextLevelCorrect = user.currentFlow === "level" ? levelCorrect + 1 : levelCorrect;
-      const nextStage = maybeAdvanceStage(nextLevelCorrect);
-      const progressPatch = user.currentFlow === "level" ? { levelProgress: { ...user.levelProgress, [user.currentLevel]: { correct: nextLevelCorrect } } } : {};
+      const nextCorrect = user.currentFlow === "level" ? levelCorrect + 1 : levelCorrect;
+      const nextStage = maybeStageAdvance(nextCorrect);
+      const progressPatch = user.currentFlow === "level" ? { levelProgress: { ...user.levelProgress, [user.currentLevel]: { correct: nextCorrect } } } : {};
       updateUser({
         ...statsPatch,
         ...progressPatch,
@@ -656,21 +639,21 @@ export default function App() {
       });
       if (user.autoPlayAnswer) speak(current.answers[0]);
       setDraftInput("");
-      if (user.currentFlow === "level" && nextLevelCorrect >= levelNeeded) {
+      if (user.currentFlow === "level" && nextCorrect >= levelNeeded) {
         setTimeout(completeLevel, CORRECT_DELAY_MS);
       } else {
         setTimeout(nextDrill, CORRECT_DELAY_MS);
       }
     } else {
-      playSound("wrong");
+      playSound(showOnly ? "correct" : "wrong");
       const recentIds = [current?.id, ...(user.recentIds || [])].filter(Boolean).slice(0, 8);
       updateUser({
         ...statsPatch,
-        hearts: current.topicId === "phrasebook" ? user.hearts : Math.max(user.hearts - 1, 0),
+        hearts: current.topicId === "phrasebook" || showOnly ? user.hearts : Math.max(user.hearts - 1, 0),
         streak: 0,
-        wrongIds: user.wrongIds.includes(current.id) ? user.wrongIds : [...user.wrongIds, current.id],
+        wrongIds: showOnly ? user.wrongIds : user.wrongIds.includes(current.id) ? user.wrongIds : [...user.wrongIds, current.id],
         recentIds,
-        feedback: { ok: false, text: showOnly ? "Answer shown" : "Not quite", explanation: `You wrote: ${showOnly ? "—" : answer || "—"}\nCorrect: ${current.answers[0]}\n${diffHint(answer, current.answers[0])}` },
+        feedback: { ok: false, text: showOnly ? "Answer shown" : "Not quite", explanation: `You wrote: ${showOnly ? "—" : answer || "—"}\nCorrect: ${current.answers[0]}\n${showOnly ? "This will return later for practice." : diffHint(answer, current.answers[0])}` },
         lastCorrectAnswer: current.answers[0]
       });
     }
@@ -699,7 +682,7 @@ export default function App() {
     if (!current) return <div style={styles.card}>No drill available.</div>;
     const isTyping = ["word-id-en", "word-en-id", "typing"].includes(current.type);
     const isBuilder = current.type === "builder";
-    const audioText = current.type === "listening" || current.type === "word-id-en" ? current.prompt : current.type === "conversation" ? current.theySay : current.answers?.[0];
+    const audioText = current.type === "listening" || current.type === "word-id-en" || current.type === "word-choice" ? current.prompt : current.type === "conversation" ? current.theySay : current.answers?.[0];
     const inputPlaceholder = current.type === "word-id-en" ? "Type English meaning" : "Type Bahasa Indonesia";
 
     return <div style={styles.card}>
@@ -718,7 +701,7 @@ export default function App() {
       </> : <div style={{ display: "grid", gap: 8 }}>{currentOptions.map((option) => <button key={option} style={styles.choice} onClick={() => submitAnswer(option)}>{option}</button>)}<button style={styles.button} onClick={() => speak(audioText)}>🔊 Play Audio</button></div>}
 
       <div style={{ ...styles.grid2, marginTop: 12 }}><button style={styles.button} onClick={() => submitAnswer("", true)}>Show Answer</button><button style={styles.button} onClick={nextDrill}>Skip</button></div>
-      <div style={{ ...styles.muted, marginTop: 12 }}>Hint: {safeTip(current)}</div>
+      <div style={{ ...styles.muted, marginTop: 12 }}>Hint: {safeHint(current)}</div>
       {user.lastCorrectAnswer ? <button style={{ ...styles.button, width: "100%", marginTop: 10 }} onClick={() => speak(user.lastCorrectAnswer)}>🔊 Play Correct Answer</button> : null}
       {feedback}
       {(user.feedback || user.lastCorrectAnswer) && current.breakdown?.length ? <details style={{ marginTop: 12 }}><summary style={{ color: "#86efac", fontWeight: 800 }}>Breakdown</summary><div style={{ display: "grid", gap: 6, marginTop: 10 }}>{current.breakdown.map(([p, m]) => <div key={`${p}-${m}`}><strong style={{ color: "#86efac" }}>{p}</strong> = {m}</div>)}</div></details> : null}
@@ -726,23 +709,45 @@ export default function App() {
   };
 
   const Learn = () => {
-    const wordPreview = levelWords.slice(0, 18);
+    const wordPreview = levelWords.slice(0, 16);
+    const phrasePreview = levelPhrases.slice(0, 6);
     return <>
-      <div style={styles.hero}><div style={styles.pill}>Level {user.currentLevel}</div><h1 style={styles.title}>{levelInfo.title}</h1><p style={styles.text}>{levelInfo.unlockText}</p><div style={{ ...styles.progress, marginTop: 14 }}><div style={progressFill((levelCorrect / levelNeeded) * 100)} /></div><div style={{ ...styles.muted, marginTop: 8 }}>{levelCorrect}/{levelNeeded} correct answers to complete this level</div><button style={{ ...styles.primary, width: "100%", marginTop: 16 }} onClick={() => user.learningStage === "intro" ? updateUser({ learningStage: "words" }) : startFlow("level", levelDrills.length ? levelDrills : levelWordDrills)}>{user.learningStage === "intro" ? "View Words You'll Learn" : "Continue Learning"}</button></div>
-      {user.learningStage === "intro" ? <div style={styles.card}><h2 style={{ marginTop: 0 }}>Words You'll Learn First</h2><p style={styles.text}>Practise these words before phrases. This makes the phrases much easier.</p><div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8, marginTop: 12 }}>{wordPreview.map((w) => <div key={w.id} style={styles.item}><strong style={{ color: "#86efac" }}>{w.idn}</strong><div style={styles.muted}>{w.eng}</div></div>)}</div><button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => { updateUser({ learningStage: "words" }); startFlow("level", levelWordDrills); }}>Start Word Practice</button></div> : <div style={styles.card}><h3>Current Stage: {stageLabel}</h3><p style={styles.text}>{user.learningStage === "words" ? "Learn the words first. You will type English meanings and Bahasa words." : user.learningStage === "phrases" ? "Now use those words inside real phrases." : user.learningStage === "conversation" ? "Now practise short replies." : "Pass the level test to unlock the next level."}</p><button style={{ ...styles.primary, width: "100%", marginTop: 12 }} onClick={() => startFlow("level", levelDrills.length ? levelDrills : levelWordDrills)}>Continue {stageLabel}</button></div>}
+      <div style={styles.hero}>
+        <div style={styles.pill}>Learning Level {user.currentLevel}</div>
+        <h1 style={styles.title}>{levelInfo.title}</h1>
+        <p style={styles.text}>{levelInfo.capability}</p>
+        <div style={{ ...styles.progress, marginTop: 14 }}><div style={progressFill((levelCorrect / levelNeeded) * 100)} /></div>
+        <div style={{ ...styles.muted, marginTop: 8 }}>{levelCorrect}/{levelNeeded} correct · {stageLabel}</div>
+        <button style={{ ...styles.primary, width: "100%", marginTop: 16 }} onClick={() => user.learningStage === "intro" ? updateUser({ learningStage: "word-choice" }) : startFlow("level", levelDrills.length ? levelDrills : levelWordDrills)}>Continue Learning</button>
+      </div>
+
+      <div style={styles.card}>
+        <div style={styles.pill}>{microLesson.title}</div>
+        <p style={{ ...styles.text, marginTop: 10 }}>{microLesson.body}</p>
+        {user.learningStage === "intro" ? <>
+          <h3>Words You'll Learn First</h3>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: 8 }}>{wordPreview.map((w) => <div key={w.id} style={styles.item}><strong style={{ color: "#86efac" }}>{w.idn}</strong><div style={styles.muted}>{w.eng}</div></div>)}</div>
+          <button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => { updateUser({ learningStage: "word-choice" }); startFlow("level", levelWordDrills.filter((d) => d.type === "word-choice")); }}>Start Words</button>
+        </> : user.learningStage === "phrases" ? <>
+          <h3>Unlocked Phrases</h3>
+          <div style={{ display: "grid", gap: 8 }}>{phrasePreview.map((p) => <div key={p.id} style={styles.item}><strong style={{ color: "#86efac" }}>{p.idn}</strong><div style={styles.muted}>{p.eng}</div></div>)}</div>
+          <button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => startFlow("level", levelDrills)}>Practise Phrases</button>
+        </> : <button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => startFlow("level", levelDrills.length ? levelDrills : levelWordDrills)}>Continue {stageLabel}</button>}
+      </div>
+
       <div style={styles.grid3}><div style={styles.stat}>🔥<br/><strong>{user.streak}</strong><div style={styles.muted}>Streak</div></div><div style={styles.stat}>🔁<br/><strong>{dueItems.length}</strong><div style={styles.muted}>Due</div></div><div style={styles.stat}>🪙<br/><strong>{user.coins}</strong><div style={styles.muted}>Coins</div></div></div>
       {feedback}
     </>;
   };
 
   const LevelComplete = () => {
-    const completed = levelRoadmap.find((l) => l.level === Math.max(1, user.currentLevel - 1));
+    const completed = levelRoadmap.find((l) => l.level === user.lastUnlocked?.completedLevel) || levelRoadmap[Math.max(0, user.currentLevel - 2)];
     const next = levelRoadmap.find((l) => l.level === user.currentLevel);
-    return <div style={styles.card}><div style={{ fontSize: 54, textAlign: "center" }}>🎉</div><h1 style={{ textAlign: "center" }}>Level Complete</h1><p style={{ ...styles.text, textAlign: "center" }}>{completed?.unlockText}</p>{next ? <><div style={{ ...styles.item, marginTop: 14 }}><strong>Unlocked: Level {next.level} — {next.title}</strong><div style={styles.muted}>{next.unlockText}</div></div><button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => updateUser({ activeTab: "learn", learningStage: "intro", feedback: null })}>Start Next Level</button></> : <button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => updateUser({ activeTab: "learn" })}>Continue Practice</button>}</div>;
+    return <div style={styles.card}><div style={{ fontSize: 58, textAlign: "center" }}>🎉</div><h1 style={{ textAlign: "center" }}>Level {completed?.level} Complete</h1><p style={{ ...styles.text, textAlign: "center" }}>{completed?.capability}</p><div style={{ ...styles.item, marginTop: 14 }}><strong>Words learned:</strong><div style={{ ...styles.muted, marginTop: 6 }}>{levelWords.slice(0, 8).map((w) => w.idn).join(" · ")}</div></div>{next ? <><div style={{ ...styles.item, marginTop: 14 }}><strong>Unlocked: Level {next.level} — {next.title}</strong><div style={styles.muted}>{next.capability}</div></div><button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => updateUser({ activeTab: "learn", learningStage: "intro", feedback: null })}>Start Next Level</button></> : <button style={{ ...styles.primary, width: "100%", marginTop: 14 }} onClick={() => updateUser({ activeTab: "learn" })}>Continue Practice</button>}</div>;
   };
 
   const Topics = () => <>
-    <div style={styles.card}><h2 style={{ marginTop: 0 }}>Practice Any Topic</h2><p style={styles.text}>Optional practice when you need a specific situation.</p><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{allTopics.map((topic) => <button key={topic.id} style={{ ...styles.choice, ...(user.selectedTopicId === topic.id ? styles.active : {}) }} onClick={() => updateUser({ selectedTopicId: topic.id })}><strong>{topic.label}</strong><div style={styles.muted}>{topic.description}</div></button>)}</div></div>
+    <div style={styles.card}><h2 style={{ marginTop: 0 }}>Practice Topic</h2><p style={styles.text}>Optional practice when you need a specific situation.</p><div style={{ display: "grid", gap: 8, marginTop: 12 }}>{allTopics.map((topic) => <button key={topic.id} style={{ ...styles.choice, ...(user.selectedTopicId === topic.id ? styles.active : {}) }} onClick={() => updateUser({ selectedTopicId: topic.id })}><strong>{topic.label}</strong><div style={styles.muted}>{topic.description}</div></button>)}</div></div>
     <div style={styles.card}><h3>Training Style</h3><div style={styles.grid2}><button style={styles.primary} onClick={() => startFlow("topic-words")}>Words First</button><button style={styles.button} onClick={() => startFlow("topic")}>Phrases</button><button style={styles.button} onClick={() => startFlow("topic-builder")}>Builder</button><button style={styles.button} onClick={() => startFlow("topic-listening")}>Listening</button><button style={styles.button} onClick={() => startFlow("topic-choice")}>Multiple Choice</button></div></div>
     <div style={styles.card}><h3>Survival Packs</h3><div style={{ display: "grid", gap: 8 }}>{survivalPacks.map((pack) => <button key={pack.id} style={{ ...styles.choice, ...(user.selectedPackId === pack.id ? styles.active : {}) }} onClick={() => updateUser({ selectedPackId: pack.id })}><strong>{pack.label}</strong><div style={styles.muted}>{pack.description}</div></button>)}</div><button style={{ ...styles.primary, width: "100%", marginTop: 12 }} onClick={() => startFlow("pack")}>Start Selected Pack</button></div>
   </>;
@@ -753,15 +758,15 @@ export default function App() {
   </>;
 
   const Profile = () => <>
-    <div style={styles.card}><h2>{activeProfile}</h2><div style={styles.grid3}><div style={styles.stat}><strong>{scoreLevel.level}</strong><div style={styles.muted}>XP Level</div></div><div style={styles.stat}><strong>{user.score}</strong><div style={styles.muted}>XP</div></div><div style={styles.stat}><strong>{user.bestStreak}</strong><div style={styles.muted}>Best</div></div></div><div style={{ ...styles.progress, marginTop: 14 }}><div style={progressFill((user.score / scoreLevel.next) * 100)} /></div><div style={{ display: "grid", gap: 8, marginTop: 14 }}><button style={styles.button} onClick={() => setShowProfileManager(true)}>Switch Profile</button><button style={styles.button} onClick={() => updateUser({ muted: !user.muted })}>{user.muted ? "Unmute Sounds" : "Mute Sounds"}</button><button style={styles.button} onClick={() => updateUser({ autoPlayAnswer: !user.autoPlayAnswer })}>{user.autoPlayAnswer ? "Auto-play Answer: On" : "Auto-play Answer: Off"}</button><button style={{ ...styles.button, ...styles.warn }} onClick={() => { setProfiles((prev) => ({ ...prev, [activeProfile]: blankUser() })); setShowProfileManager(true); }}>Reset Profile</button></div></div>
+    <div style={styles.card}><h2>{activeProfile}</h2><div style={styles.grid3}><div style={styles.stat}><strong>{user.currentLevel}</strong><div style={styles.muted}>Learning Level</div></div><div style={styles.stat}><strong>{xpRank.level}</strong><div style={styles.muted}>XP Rank</div></div><div style={styles.stat}><strong>{user.bestStreak}</strong><div style={styles.muted}>Best</div></div></div><div style={{ ...styles.progress, marginTop: 14 }}><div style={progressFill((user.score / xpRank.next) * 100)} /></div><div style={{ display: "grid", gap: 8, marginTop: 14 }}><button style={styles.button} onClick={() => setShowProfileManager(true)}>Switch Profile</button><button style={styles.button} onClick={() => updateUser({ muted: !user.muted })}>{user.muted ? "Unmute Sounds" : "Mute Sounds"}</button><button style={styles.button} onClick={() => updateUser({ autoPlayAnswer: !user.autoPlayAnswer })}>{user.autoPlayAnswer ? "Auto-play Answer: On" : "Auto-play Answer: Off"}</button><button style={{ ...styles.button, ...styles.warn }} onClick={() => { setProfiles((prev) => ({ ...prev, [activeProfile]: blankUser() })); setShowProfileManager(true); }}>Reset Profile</button></div></div>
     <div style={styles.card}><h3>Best Daily Plan</h3><p style={styles.text}>1. Continue level path. 2. Words first. 3. Phrases. 4. Optional topic practice for real situations.</p></div>
   </>;
 
   const BottomNav = () => <div style={styles.bottomNav}><div style={styles.navInner}>{[["learn", "🏠", "Learn"], ["topics", "📚", "Topics"], ["phrasebook", "⭐", "Phrases"], ["profile", "👤", "Profile"]].map(([tab, icon, label]) => <button key={tab} style={{ ...styles.navBtn, ...(user.activeTab === tab ? styles.navActive : {}) }} onClick={() => updateUser({ activeTab: tab })}><div style={{ fontSize: 20 }}>{icon}</div>{label}</button>)}</div></div>;
 
-  if (showProfileManager) return <div style={styles.page}><div style={styles.wrap}><div style={styles.hero}><div style={styles.pill}>Bali Bahasa</div><h1 style={styles.title}>Choose learner</h1><p style={styles.text}>Each profile keeps separate levels, progress, and phrasebook items.</p></div><div style={styles.card}>{Object.keys(profiles).map((name) => <button key={name} style={{ ...styles.choice, width: "100%", marginBottom: 8 }} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}>{name}<div style={styles.muted}>Level path {profiles[name]?.currentLevel || 1}</div></button>)}<div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={newProfileName} onChange={(e) => setNewProfileName(e.target.value)} placeholder="New profile" /><button style={styles.primary} onClick={() => { const n = newProfileName.trim(); if (!n) return; setProfiles((prev) => ({ ...prev, [n]: blankUser() })); setActiveProfile(n); setNewProfileName(""); setShowProfileManager(false); }}>Add</button></div></div>{footer}</div></div>;
+  if (showProfileManager) return <div style={styles.page}><div style={styles.wrap}><div style={styles.hero}><div style={styles.pill}>Bali Bahasa</div><h1 style={styles.title}>Choose learner</h1><p style={styles.text}>Each profile keeps separate levels, progress, and phrasebook items.</p></div><div style={styles.card}>{Object.keys(profiles).map((name) => <button key={name} style={{ ...styles.choice, width: "100%", marginBottom: 8 }} onClick={() => { setActiveProfile(name); setShowProfileManager(false); }}>{name}<div style={styles.muted}>Learning Level {profiles[name]?.currentLevel || 1}</div></button>)}<div style={{ display: "flex", gap: 8 }}><input style={styles.input} value={newProfileName} onChange={(e) => setNewProfileName(e.target.value)} placeholder="New profile" /><button style={styles.primary} onClick={() => { const n = newProfileName.trim(); if (!n) return; setProfiles((prev) => ({ ...prev, [n]: blankUser() })); setActiveProfile(n); setNewProfileName(""); setShowProfileManager(false); }}>Add</button></div></div>{footer}</div></div>;
 
-  if (!user.started) return <div style={styles.page}><div style={styles.wrap}><div style={styles.hero}><div style={styles.pill}>Words → Phrases → Conversation</div><h1 style={styles.title}>Speak useful Bahasa faster</h1><p style={styles.text}>V2.4 now guides you through levels. Each level starts with words before phrases.</p><button style={{ ...styles.primary, width: "100%", marginTop: 16 }} onClick={() => updateUser({ started: true })}>Start</button></div>{footer}</div></div>;
+  if (!user.started) return <div style={styles.page}><div style={styles.wrap}><div style={styles.hero}><div style={styles.pill}>Words → Phrases → Conversation</div><h1 style={styles.title}>Speak useful Bahasa faster</h1><p style={styles.text}>A simple guided path: recognise words, recall words, use phrases, then practise conversation.</p><button style={{ ...styles.primary, width: "100%", marginTop: 16 }} onClick={() => updateUser({ started: true })}>Start</button></div>{footer}</div></div>;
 
   const screen = user.activeTab === "train" ? TrainingCard() : user.activeTab === "level-complete" ? <LevelComplete /> : user.activeTab === "topics" ? <Topics /> : user.activeTab === "phrasebook" ? <Phrasebook /> : user.activeTab === "profile" ? <Profile /> : <Learn />;
   const focus = user.activeTab === "train";
