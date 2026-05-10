@@ -28,9 +28,30 @@ function expandVariants(answer) {
   return Array.from(variants).filter(Boolean);
 }
 
+function getAcceptedAnswers(answer) {
+  const raw = String(answer || "").trim();
+  const normal = normalize(raw);
+  const parts = raw
+    .replace(/[(][^)]*[)]/g, "")
+    .replace(/,/g, "/")
+    .split("/")
+    .map((part) => normalize(part))
+    .filter(Boolean);
+
+  const variants = new Set([normal, ...parts]);
+  Array.from(variants).forEach((item) => {
+    variants.add(item.replace(/^(the|a|an) +/, ""));
+  });
+
+  return Array.from(variants).filter(Boolean);
+}
+
 function isCorrect(input, answers) {
   const value = normalize(input);
-  return answers.flatMap(expandVariants).some((answer) => answer === value);
+  return answers
+    .flatMap(getAcceptedAnswers)
+    .flatMap(expandVariants)
+    .some((answer) => answer === value);
 }
 
 function shuffle(items) {
@@ -118,56 +139,61 @@ function phraseDistractors(phrase, field = "idn") {
 }
 
 function makeWordDrills(words) {
-  return words.flatMap((w, i) => [
-    {
-      id: `word-choice-${w.id || i}`,
-      sourceId: w.id,
-      type: "word-choice",
-      category: w.category,
-      topicId: w.topicId,
-      scenario: "Word recognition",
-      instruction: "Choose the meaning",
-      prompt: w.idn,
-      answers: [w.eng],
-      options: shuffle([w.eng, ...wordDistractors(w, "eng")]),
-      explanation: `${w.idn} = ${w.eng}`,
-      level: w.level || 1,
-      breakdown: [[w.idn, w.eng]],
-      baseWord: w
-    },
-    {
-      id: `word-id-en-${w.id || i}`,
-      sourceId: w.id,
-      type: "word-id-en",
-      category: w.category,
-      topicId: w.topicId,
-      scenario: "Word meaning",
-      instruction: "Type the English meaning",
-      prompt: w.idn,
-      answers: [w.eng],
-      options: shuffle([w.eng, ...wordDistractors(w, "eng")]),
-      explanation: `${w.idn} = ${w.eng}`,
-      level: w.level || 1,
-      breakdown: [[w.idn, w.eng]],
-      baseWord: w
-    },
-    {
-      id: `word-en-id-${w.id || i}`,
-      sourceId: w.id,
-      type: "word-en-id",
-      category: w.category,
-      topicId: w.topicId,
-      scenario: "Word recall",
-      instruction: "Type the Bahasa Indonesia word",
-      prompt: w.eng,
-      answers: [w.idn],
-      options: shuffle([w.idn, ...wordDistractors(w, "idn")]),
-      explanation: `${w.idn} = ${w.eng}`,
-      level: w.level || 1,
-      breakdown: [[w.idn, w.eng]],
-      baseWord: w
-    }
-  ]);
+  return words.flatMap((w, i) => {
+    const isSameInBothLanguages = normalize(w.idn) === normalize(w.eng);
+    if (isSameInBothLanguages) return [];
+
+    return [
+      {
+        id: `word-choice-${w.id || i}`,
+        sourceId: w.id,
+        type: "word-choice",
+        category: w.category,
+        topicId: w.topicId,
+        scenario: "Word recognition",
+        instruction: "Choose the meaning",
+        prompt: w.idn,
+        answers: [w.eng],
+        options: shuffle([w.eng, ...wordDistractors(w, "eng")]),
+        explanation: `${w.idn} = ${w.eng}`,
+        level: w.level || 1,
+        breakdown: [[w.idn, w.eng]],
+        baseWord: w
+      },
+      {
+        id: `word-id-en-${w.id || i}`,
+        sourceId: w.id,
+        type: "word-id-en",
+        category: w.category,
+        topicId: w.topicId,
+        scenario: "Word meaning",
+        instruction: "Type the English meaning",
+        prompt: w.idn,
+        answers: [w.eng],
+        options: shuffle([w.eng, ...wordDistractors(w, "eng")]),
+        explanation: `${w.idn} = ${w.eng}`,
+        level: w.level || 1,
+        breakdown: [[w.idn, w.eng]],
+        baseWord: w
+      },
+      {
+        id: `word-en-id-${w.id || i}`,
+        sourceId: w.id,
+        type: "word-en-id",
+        category: w.category,
+        topicId: w.topicId,
+        scenario: "Word recall",
+        instruction: "Type the Bahasa Indonesia word",
+        prompt: w.eng,
+        answers: [w.idn],
+        options: shuffle([w.idn, ...wordDistractors(w, "idn")]),
+        explanation: `${w.idn} = ${w.eng}`,
+        level: w.level || 1,
+        breakdown: [[w.idn, w.eng]],
+        baseWord: w
+      }
+    ];
+  });
 }
 
 function makePhraseDrills(phrases) {
@@ -250,7 +276,12 @@ function makeConversationDrills(chains) {
     (chain.turns || []).forEach((turn, idx) => {
       if (turn.speaker !== "user") return;
       const previous = chain.turns[idx - 1];
-      const alternatives = chains.flatMap((c) => (c.turns || []).filter((t) => t.speaker === "user" && t.idn !== turn.idn).map((t) => t.idn));
+      if (!previous || previous.speaker === "user" || !previous.idn) return;
+      const alternatives = chains.flatMap((c) =>
+        (c.turns || [])
+          .filter((t) => t.speaker === "user" && t.idn !== turn.idn)
+          .map((t) => t.idn)
+      );
       out.push({
         id: `conversation-${chain.id}-${idx}`,
         type: "conversation",
@@ -258,8 +289,8 @@ function makeConversationDrills(chains) {
         topicId: chain.topicId,
         scenario: chain.title || chain.category,
         instruction: "Choose the best reply",
-        theySay: previous?.idn || chain.title,
-        prompt: previous?.idn || chain.title,
+        theySay: previous.idn,
+        prompt: previous.idn,
         answers: [turn.idn],
         options: shuffle([turn.idn, ...shuffle(alternatives).slice(0, 3)]),
         explanation: `${turn.idn} = ${turn.eng}`,
